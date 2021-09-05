@@ -1,0 +1,22 @@
+export default class Scheduler {
+  # ```
+  # final promise : Promise<Int32> = async () -> 1 + 2 # Doesn't block
+  # final result : Int32 = await promise               # Blocks
+  # assert(result == 3)
+  # ```
+  def async(lambda : Lambda<fragile+ () -> R>) : Promise<R> forall R {
+
+  }
+
+  def parallel(lambda : Lambda<threadsafe () -> R>) : Promise<R> forall R {
+
+  }
+
+  def await(promise : Promise<R>) : R forall R {
+
+  }
+
+  def await(promises : Promise<R>[Z]) : R[Z] forall R, Z {
+
+  }
+}

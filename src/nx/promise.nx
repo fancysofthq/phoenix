@@ -1,0 +1,9 @@
+export default class Promise<Return R> {
+  static def any(promises : Promise<R>[]) : R {
+
+  }
+
+  def resolve() : R {
+
+  }
+}

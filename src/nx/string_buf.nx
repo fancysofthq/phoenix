@@ -1,0 +1,41 @@
+import { log } from "math"
+
+export default class StringBuf {
+  get pointer : Byte*
+  get size : USize
+  let capacity : USize
+
+  static def new(string : String) : Self {
+    final capacity = 2 ** log(2, string<Size>).floor()
+    final pointer = unsafe! $malloc(capacity) as Byte*
+    unsafe! $strcpy(pointer as $char*, &string as $`const char*`)
+    return Self(pointer: pointer, size: string<Size>, capacity: capacity)
+  }
+
+  def append(string : String) : Self {
+    final new_capacity = this.size + string<Size>
+
+    if (capacity <= new_capacity)
+      this.pointer = (if (!this.pointer.null?())
+        unsafe! $realloc(this.pointer as $void*, new_capacity)
+      else
+        unsafe! $malloc(new_capacity) as Byte*
+      end) as Byte*
+
+      this.capacity = new_capacity
+    end
+
+    unsafe! $strcpy((this.pointer + this.size) as $char*, &string as $char*)
+    this.size += string<Size>
+
+    return this
+  }
+
+  alias << => append
+
+  private reimpl finalize() {
+    if (!this.pointer.null?()) {
+      unsafe! $free(this.pointer as $void*)
+    }
+  }
+}
