@@ -32,7 +32,7 @@ def sum(a, b) {
 }
 
 let result = sum(1, 2)
-puts("Result: #{result}") # => Result: 3
+puts("Result: #{result}") # -> Result: 3
 ```
 
 ```nx
@@ -41,7 +41,7 @@ export default struct Point
   let x, y : Float
 
   # A struct is const by default, so are its members.
-  def length() => (this.x ^ 2 + this.y ^ 2).sqrt()
+  def length() -> (this.x ^ 2 + this.y ^ 2).sqrt()
 end
 
 # The by-default-public constructor with
@@ -53,25 +53,48 @@ if (point.length() != 5) then throw "Something's wrong!"
 
 ```nx
 export interface HasFullName {
-  decl full_name() : String
+  decl full_name() : StringBuf
 }
 
 # Class members are private by default.
 # Also, a class type is mutable by default.
 export class User implements HasFullName
-  public get first_name, last_name : String
+  public get first_name, last_name : StringBuf
 
   # The default constructor is private, thus have to define a custom one.
-  public static def new(*args, **kwargs) => self(*args, **kwargs)
+  public static def new(*args, **kwargs) -> self(*args, **kwargs)
 
   impl ~HasFullName:full_name()
     return this.first_name + " " + this.last_name
   end
 end
 
-final printer = (obj : HasFullName) => puts(obj.full_name())
+final printer = (obj : HasFullName) -> puts(obj.full_name())
 final user = User.new(first_name: "John", last_name: "Doe")
-printer(user) # => John Doe
+printer(user) # -> John Doe
+```
+
+## Intrinsics
+
+Intrinsics are executed in runtime.
+
+```nx
+# The lambda argument implicitly inherits the containing scope's safety.
+decl @async(lambda : Lambda<(Void) : T>) : Promise<T>
+
+# The lambda is argument implicitly fragile.
+decl @parallel(lambda : Lambda<fragile (Void) : T>) : Promise<T>
+
+decl @await(promise : Promise<T>) : T
+decl @await(promises : Enumerable<Promise<T>>) : T
+
+decl @mutexlock(klass : T) : Void
+decl @mutexunlock(klass : T) : Void
+
+decl @upcast(descendant : T) : U
+
+# Throws if the *expr* is falsey.
+decl @assert(expr) : Void
 ```
 
 ## Type system
@@ -89,7 +112,7 @@ Built-in scalar types:
 * `Byte` -- alias to `UInt8`;
 * `Bool` -- either `true` or `false`;
 * `Void` -- always equals to `void`;
-* `Pointer<T> == T*` -- a typed pointer with unsafe access;
+* `Pointer<T> : T*` -- a typed pointer with unsafe access;
 * `Variant<T>` -- contains one or more types;
 
 Built-in structs:
@@ -97,29 +120,28 @@ Built-in structs:
 * `Ratio<T>` -- an integer ratio, e.g. `1/2 : Ratio<Int32>`;
 * `Range<T>` -- a numeric range, e.g. `1..10 : Range<Int32>`;
 * `Array<T, Z>` -- an on-stack container of fixed length, e.g. `[1, 2] : Array<Int32, 2> : Int32[2]`;
-* `Tuple<*T>` -- an anonymous ordered struct, e.g. `("foo", 42) : Tuple<String, Int32>`;
-* `NamedTuple<**T>` -- an anonymous named struct, e.g. `(foo: 42, bar: "baz") : NamedTuple<foo: Int, bar: String>`;
-* `Map<K, V, Z>` -- an on-stack hashtable of fixed size, e.g. `{"foo" => 42} : Map<String, Int32, 1>`;
-* `Vector<T, Z>` -- an on-stack numeric vector of fixed size, e.g. `<1, 2, 3, 4> == %<1 2 3 4> : Vector<Int32, 4> : Tenzor<Int32, 4>`;
-* `Matrix<T, Z>` -- an on-stack square matrix of fixed size, e.g. `|[1, 2], [3, 4]| == %|[1 2][3 4]| : Matrix<Int32, 2> : Tenzor<Int32, 2, 2>`
-* `Tenzor<T, *D>` -- an on-stack arbitrary-dimensioned tenzor, e.g. `%|[[1 2][3 4]][[5 6][7 8]]| : Tenzor<Int32, 2, 2, 2>`;
+* `Tuple<*T>` -- an anonymous ordered struct, e.g. `("foo", 42) : Tuple<CString, Int32>`;
+* `NamedTuple<**T>` -- an anonymous named struct, e.g. `(foo: 42, bar: "baz") : NamedTuple<foo: Int, bar: CString>`;
+* `Map<K, V, Z>` -- an on-stack associative array of fixed size, e.g. `["foo" => 42] : Map<CString, Int32, 1>`;
+* `Vector<T, Z>` -- an on-stack numeric vector of fixed size, e.g. `|1, 2, 3, 4| == %|1 2 3 4| : Vector<Int32, 4> : Tensor<Int32, 4>`;
+* `Matrix<T, Z>` -- an on-stack square matrix of fixed size, e.g. `|[1, 2], [3, 4]| == %|[1 2][3 4]| : Matrix<Int32, 2> : Tensor<Int32, 2, 2>`
+* `Tensor<T, *D>` -- an on-stack arbitrary-dimensioned tensor, e.g. `%|[[1 2][3 4]][[5 6][7 8]]| : Tensor<Int32, 2, 2, 2>`;
 
 Built-in classes:
 
-* `String` -- an immutable, passed-by-reference, UTF-8 encoded string;
+* `String` -- a mutable UTF-8 encoded string;
 * `List<T>` -- a dynamic container, e.g. `List.new([1, 2]) : List<Int32>`;
 * `Set<T>` -- a list with hash-defined uniquiness of its elements;
-* `Hash<K, V>` -- a dynamic hashtable, e.g. `Hash.new({"foo" => 42}) : Hash<String, Int32>`;
+* `Hash<K, V>` -- a dynamic hashtable, e.g. `Hash.new(["foo" => 42]) : Hash<CString, Int32>`;
 * `Box<T>` -- wraps scalar values;
 * `Promise<T>` -- resolves at some later point of execution;
-* `Lambda<safety [Closure](*Args) => Return>` -- a lambda expression;
+* `Lambda<safety [Closure](*Args) -> Return>` -- a lambda expression;
 
-Custom `namespace`, `interface`, `struct`, `class`, `enum` and `unit` types may be defined.
+Custom `namespace`, `interface`, `struct`, `class`, `enum`, `unit` and `annotation` types may be defined.
 
 ### Scalars
 
-`Int*`, `UInt*`, `Float*`, `Char`, `Bool`, `Void` and `Pointer<T>` types are scalar.
-They are always stored on the stack and are passed by value.
+`Int*`, `UInt*`, `Float*`, `Char`, `Bool`, `Void`, `Pointer<T>` and `CString` types are scalar: they are stored on the stack and are passed by value.
 
 A scalar type doesn't have any fields, thus it can not have a mutability modifier, i.e. neither `mut Int32` nor `const Int32` is legal.
 
@@ -155,8 +177,8 @@ The literal symbol for decimal floats is `d(size = 32)`, e.g. `%d[1 2 3] == %d32
 
 ```nx
 # Decimal floats allow precise decimal arithmetics.
-assert(1.1f + 2.2f != 3.3f)
-assert(1.1d + 2.2d == 3.3d)
+@assert(1.1f + 2.2f != 3.3f)
+@assert(1.1d + 2.2d == 3.3d)
 ```
 
 #### `Char`
@@ -168,6 +190,13 @@ A char literal allows explicit Unicode codepoint in hexadecimal format, e.g. `'a
 
 The literal symbol for chars is `c`, e.g. `%c[hi !] == ['h', 'i', ' ', '!'] : Char[4]`.
 A magic char string literal can be easily converted to a desired integer format by appending its literal symbol after `c`, for example: `%cu[Hello] == %u[72 101 108 108 111] : UInt32[5]`.
+
+A C char literal obeys the according C rules.
+
+```nx
+$'a' : $char      # Usually one byte
+$L'🌎' : $wchar_t # A wide character
+```
 
 #### `Bool`
 
@@ -195,7 +224,7 @@ A `namespace`, `interface`, `struct`, `class`, `enum` and `unit` types are all n
 
 A namespace is accessed using the `::` delimeter.
 A namespace in the top-level may have (and usually has) its preceding namespace delimeter omitted.
-For example, it's usually `String`, not `::String`.
+For example, it's usually `StringBuf`, not `::StringBuf`.
 
 A `namespace` (thus any type) may be declared `private`, which would make it inaccessible from the outside.
 
@@ -213,12 +242,21 @@ A `struct` instance is stored on the stack (if possible) and is always passed by
 
 A `struct` instance member (variable or method) and its constructor is `public` by default.
 
-A `struct` type itself, as well as its instance methods, are implicitly `const`, and it can not be changed during declaration.
-Note that `mut` methods aren't allowed in a `struct`, because `this` would be a copy of the caller within the method.
-A struct type reference may be marked `mut` (or `const`) explicitly, e.g. `final point = mut Point(1, 2)`; this would allow to modify the struct's fields.
+A `struct` type instance is implicitly `mut`: you can modify its fields.
+However, a struct's method is always implicitly `const`, because a struct instance is passed by value to it.
+That said, a mutability modifier only affects access to the struct's fields.
+You can declare a struct instance explicitly `const`: this would disallow modifying its fields.
 
 It is impossible to directly cast a `const` struct to a `mut` struct.
-However, one can always copy-assign a `const T` struct to a `mut T` variable: `final mutable : mut T = constant : T`.
+However, one can always copy-assign a `const T` struct to a `mut T` variable: `final mutable : T = constant : const T`.
+
+```nx
+final point1 = Point(1, 2)
+point1.x = 3 # Ok, `point1` is implicitly `mut Point`
+
+final point2 : const Point = point1
+# point2.x = 3 # Panic! `point2` is `const`
+```
 
 A `struct` may only extend another `struct`.
 A `struct` marked `abstract` can not be neither initialized nor safely cast to, but can contain unimplemented `decl`s.
@@ -232,7 +270,7 @@ end
 
 struct Point1 extends Point
   let x : Float64
-  impl length() => this.x
+  impl length() -> this.x
 end
 
 # The order between `y` and `z` is undefined. However,
@@ -242,12 +280,14 @@ struct Point3 extends Point1
 
   # The implementation is inherited from `Point1`,
   # therefore it needs to be reimplemented.
-  reimpl length() => (this.x ^ 2 + this.y ^ 2).sqrt()
+  reimpl length() -> (this.x ^ 2 + this.y ^ 2).sqrt()
 end
 
 let p3 = Point3(1, 2, 3)
 let p1 = p3 as Point1 # This is safe
 ```
+
+A struct may contain a class field.
 
 ### Classes
 
@@ -277,19 +317,86 @@ For example:
 class List<T>
   const def clone() : self # `mut self` is implied
     final new = self.new(this.capacity)
-    this.each([new](e) => fragile! new.push(e))
+    this.each([new](e) -> fragile! new.push(e))
     return new
   end
 end
 ```
 
 A `class` may extend another `class` or `struct`.
+Extending a struct injects its fields into the class'es.
 A `class` marked `abstract` can not be neither initialized nor safely cast to, but can contain unimplemented `decl`s.
-Similar to structs, a class descendant can be safely cast to any of its non-abstract ancestors.
 
 A `class` contains RTTI, which allows to have, for example, an array of a class descendants without type erasure.
+However, this disables the ability to statically cast a class descendant to its ancestor.
+A class instance can be still dinamically cast:
+
+```nx
+class Animal;
+
+class Dog {
+  public static def new -> return self()
+}
+
+final dog = Dog.new
+# final animal = dog as Animal # Panic! Static casting is not allowed
+final animal = @cast<Animal>(dog) # Ok, RTTI in action!
+dog = @cast<Dog>(animal) # Ok, but may throw if this is not actually a dog
+```
+
+A class header always contains a thread-safe mutex.
+A fragile class method call or accessing a class field, from within a `threadsafe` context, is implicitly wrapped into the mutex.
+
+```nx
+final list = List.new([1, 2, 3])
+
+threadsafe! do
+  list.push(4) # Would implicitly wrap the `fragile def push` call into the mutex
+  @assert(list.size == 4) # Would also wrap the field access
+end
+```
+
+The mutex can be directly locked using the mutex lock intrinsics:
+
+```nx
+# From now on, the `list` instance is locked.
+@mutexlock(list)
+
+fragile! do
+  # Calls the fragile method without implcitly wrapping it
+  # into mutex, because the context is `fragile`.
+  list.push(42)
+
+  @assert(list.size == 4) # Ditto
+end
+
+# Note: A mutex is implicitly unlocked
+# upon the containing scope termination.
+# @mutexunlock(list)
+```
 
 #### `String`
+
+A `String` maintains a mutable dynamically-allocated UTF-8 encoded null-terminated multi-byte string buffer (NTMBS).
+
+A string literal in Onyx resolves to a `String`, i.e. a dynamically allocated class instance.
+
+```nx
+final str = "Hello, "
+str += "🌎!" # Would re-allocate the underlying buffer
+
+@assert(str.bytesize == 12)  # Including the null byte
+@assert(str.length == 9)     # In Unicode chars, excluding the null byte
+
+unsafe! $puts(str.pointer : $`const char*`) # => Hello, 🌎! (null-terminated)
+```
+
+A C string literal is a pointer to an immutable NTMBS.
+
+```nx
+final str = $L"Hello, 🌎!" : $`const wchar_t*`
+unsafe! $fputws(str, $stdout)
+```
 
 #### `Box`
 
@@ -322,7 +429,7 @@ enum Foo
 end
 
 final foo = Foo::Bar
-assert(foo.to_s() == "Bar")
+@assert(foo.to_s() == "Bar")
 ```
 
 ### Units
@@ -343,9 +450,9 @@ unit Singleton
   let counter = 0
 end
 
-assert(Singleton == Singleton())
+@assert(Singleton == Singleton())
 Singleton.counter += 1
-assert(Singleton::counter == 1)
+@assert(Singleton::counter == 1)
 ```
 
 ### Generic types
@@ -399,7 +506,7 @@ decl sum(a, b : T) forall T
 
 # Both implementations are specialization-specific overloads.
 impl sum(a, b : Int) { return a.add(b); }
-impl sum(a, b : String) { return a.append(b); }
+impl sum(a, b : CString) { return a.append(b); }
 ```
 
 A function argument is implicitly `final` by default.
@@ -421,40 +528,74 @@ Note that different argument type mutability doesn't count as an overload either
 Functions may be declared within other functions and lambdas.
 However, they won't support closures.
 
-Any function or lambda can be called `async`.
+Any function or lambda can be called using the `@async` intrinsic.
 
 ```nx
-def calc() => return 42
-final promise : Promise<Int> = async calc() # Doesn't block
-final result = await promise # Blocks, may throw
+def calc() -> return 42
+final promise : Promise<Int> = @async(calc()) # Doesn't block
+final result = @await(promise) # Blocks, may throw
 final result = promise.resolve() # Blocks, may throw
-await Promise.all([promise]) : Promise<Int>
-await Promise.any([promise]) : Promise<Int>
+@await(Promise.all([promise])) : Promise<Int>
+@await(Promise.any([promise])) : Promise<Int>
 
 # TODO: May work with generics, so that `List<Promise<T>>.all() : List<T>`.
-# await [promise].all() # Wow.
+# @await([promise].all()) # Wow.
 ```
 
 ### Lambdas
 
 A lambda is an executable blocks of code.
+It may have explicitly closured variables from the outer scope.
+It shall also have its arguments size known in advance.
 
-A lambda may have explicitly closured variables from the outer scope.
-
-A lambda is ARC'ed akin to a class.
-
-A lambda may be lowered to a generator by a compiler.
-
-A lambda must have its arguments size known in advance.
-
-A lambda safety is implicitly `fragile`, unless created with `async`: in that case, it'd be `threadsafe`.
+A lambda is a class instance, thus ARC'ed.
 
 ```nx
 final c = 3
-final sum = [final c = c](a, b : Int) => a + b + c
-assert(sum(1, 2) == 6)
+
+final sum = [c](a, b : Int32) -> a + b + c
+
+# # A (slightly) longer version:
+# final sum = [final c = c](a : Int32, b : Int32) : Int32 -> { return a + b + c; }
+
+@assert(sum(1, 2) == 6)
+
 c = 4
-assert(sum.call(1, 2) == 6) # Note how a copy of `c` is closured
+@assert(sum.call(1, 2) == 6) # Note how a copy of `c` is closured
+```
+
+A lambda literal creates a lambda instance with fragile context by default, unless created with `@parallel`: in that case, it'd contain a threadsafe context.
+
+```nx
+fragile! do
+  final l1 = (() -> {
+    # Here, the context is fragile.
+  })
+
+  final l2 = @parallel(() -> do
+    # Here, the context is threadsafe.
+  end)
+end
+```
+
+A forward-type-restricted lambda literal works as expected, providing the desired safety within the lambda body.
+A lambda function argument has the minimum of the declaration's safety by default.
+
+```nx
+# The *lambda* argument lambda safety is implicitly `fragile+`,
+# inheriting from the function declaration's.
+#
+# A longer variant would be:
+#
+# ```
+# fragile def foo(lambda : <fragile+ [](a : Int32, b : Int32) -> Int32>)
+# ```
+#
+fragile def foo(lambda : <(a, b : Int32) ->>) {
+  # A `fragile+` lambda can be safely called
+  # from within a `fragile` context.
+  return lambda(1, 2)
+}
 ```
 
 ### Branches
@@ -463,22 +604,19 @@ assert(sum.call(1, 2) == 6) # Note how a copy of `c` is closured
 
 `if` is similar to such in C, but with flexible branch body syntax.
 The condition expression doesn't require parentheses neither.
-Note that `then` is acceptable anywhere, but is required only for inline (i.e. single-expression) branch bodies.
+Note that `then` is acceptable anywhere, but is required only for inline single-expression branch bodies.
 
 ```nx
-if (cond?()) then a() else b()
-
 if cond?() then a() else { b(); }
+if (cond?()) { a(); } else b()
 
-# `then` is optional after `(cond?())`.
 if cond?()
   a()
-else
+else {
   b()
-end
+}
 
-# Ditto.
-if (cond?()) then {
+if (cond?()) {
   a()
 } else
   b()
@@ -489,12 +627,12 @@ A compiler narrows down a value type if possible.
 This is applicable to any other branching (i.e. `switch`).
 
 ```nx
-final foo = (rand?() ? 42 : "bar") : Int | String
+final foo = (rand?() ? 42 : "bar") : Int | CString
 
 if foo.is_a?(Int)
   foo : Int # Ok, narrowed
 else
-  foo : String # Ditto
+  foo : CString # Ditto
 end
 ```
 
@@ -505,13 +643,13 @@ A `convey` instruction may be used to convey a value from a branch early.
 final result : Bool = if rand?() then true else convey false
 ```
 
-Labels may be used to determine which statement to `convey` from.
+Labels may be used to determine which statement to `convey` the value from.
 
 ```nx
 # Would never equal to `2`.
-final result = <%if_a>if rand?()
+final result = if~%ifa rand?()
   if rand?()
-    <%if_a>convey 1
+    convey~%ifa 1
   else
     convey 2
   end
@@ -524,16 +662,19 @@ end
 
 ### `switch`
 
-A `switch` is exhaustive and may only be used on numeric-like `enum`, `Variant`, `Int` and `Char` values.
-Similar to `if`, it also narrows down the switched value type.
+A `switch` is exhaustive and may only be used on numeric-like `enum`, `Variant`, `Bool`, `Int`, `Pointer` and `Char` values.
+
+Note that two identical `CString`s are not guaranteed to point to the same address, thus switching on a `CString` instance it is not allowed; it shall be cast to a `Pointer` beforeahead.
+
+Similar to `if`, a `switch` statement narrows down the switched value type.
 
 ```nx
-final foo = (rand?() ? 42 : "bar") : Int | String
+final foo = (rand?() ? 42 : "bar") : Int | CString
 
 switch (foo)
 when Int then foo : Int
-when String
-  foo : String
+when CString
+  foo : CString
 end
 ```
 
@@ -547,15 +688,14 @@ end
 final foo : Foo = rand?() ? :bar : :baz
 
 switch (foo)
-when :bar { assert(foo.is?(:bar)); }
-when :baz then assert(foo.is?(:baz))
+when :bar { @assert(foo.is?(:bar)); }
+when :baz then @assert(foo.is?(:baz))
 else
   puts("Something else")
 end
 ```
 
 Similar to `if`, a `switch` statement latest evaluated expression is deemed to be the statement's return value.
-A `convey` instruction may also be used.
 
 ### Loops
 
@@ -580,10 +720,10 @@ The `continue` instruction skips the currect evaluation of the body of the loop 
 Labels may be used to control which outside loop to `break` or `continue` from.
 
 ```nx
-final result = <%loop_a>while true
+final result = while~%loopa true
   while true
     if rand?()
-      <%loop_a>break 42 # Would break from the loop labeled `%loop_a`
+      break~%loopa 42 # Would break from the loop labeled `%loopa`
     else
       break # Would break from the down-second loop
     end
@@ -645,11 +785,9 @@ unsafe! $puts(&message)
 * [ ] Inline blocks of C code;
   * [ ] C-style comments within those blocks;
 * [ ] Parsing external C includes without function definitions;
-* [ ] Inline and external C function definitions, compiled by the Onyx compiler;
-* [ ] Complete C++ features;
-  * [ ] Template instantiation;
+* [ ] Inline and external C function definitions, compiled by the Onyx compiler.
 
-Useful links:
+## Development
 
-* https://blog.audio-tk.com/2018/09/18/compiling-c-code-in-memory-with-clang/
-* https://fdiv.net/2012/08/15/compiling-code-clang-api
+Never use C++ `class` declarations.
+Just don't.

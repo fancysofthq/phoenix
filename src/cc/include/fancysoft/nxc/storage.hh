@@ -2,10 +2,8 @@
 
 namespace Fancysoft {
 namespace NXC {
-namespace Onyx {
 
-enum class Safety { Unsafe, Fragile, Threadsafe };
+enum Storage { Static, Instance };
 
-}
 } // namespace NXC
 } // namespace Fancysoft

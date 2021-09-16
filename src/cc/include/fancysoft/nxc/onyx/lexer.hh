@@ -45,6 +45,10 @@ private:
       return false;
     }
   }
+
+  auto _punct(Token::Punct::Kind kind) { return _token<Token::Punct>(kind); }
+
+  std::string _lex_string_literal_content(char terminator);
 };
 
 } // namespace Onyx

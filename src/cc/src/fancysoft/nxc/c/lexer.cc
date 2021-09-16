@@ -1,6 +1,3 @@
-#include <exception>
-#include <sstream>
-
 #include "fancysoft/nxc/c/lexer.hh"
 
 namespace Fancysoft::NXC::C {
@@ -10,82 +7,72 @@ Util::Coro::Generator<Token::Any> Lexer::lex() noexcept {
     _advance();
 
     do {
-      // End-of-line.
-      if (_is_eol()) {
-        while (_is_eol())
+      if (_is_newline()) {
+        while (_is_newline())
           _advance();
 
-        co_yield _token<Token::Punct::EOL>();
+        co_yield _punct(Token::Punct::Newline);
         continue;
       }
 
-      // A space.
       else if (_is_space()) {
         while (_is_space())
           _advance();
 
-        co_yield _token<Token::Punct::Space>();
+        co_yield _punct(Token::Punct::HSpace);
         continue;
       }
 
       // An identifier.
       else if (_is_latin_lowercase() || _is('_')) {
-        std::stringbuf buff;
+        std::stringbuf buf;
 
         while (_is_latin_lowercase() || _is('_') || _is_decimal()) {
-          buff.sputc(_code_point);
+          buf.sputc(_code_point);
           _advance();
         }
 
-        const auto string = buff.str();
+        const auto string = buf.str();
 
         co_yield _token<Token::Id>(string);
         continue;
       }
 
-      // TODO: Needs much improvement.
+      // TODO: The list of C operators is well-known.
       else if (_is_op()) {
-        std::stringbuf buff;
+        std::stringbuf buf;
 
         while (_is_op()) {
-          buff.sputc(_code_point);
+          buf.sputc(_code_point);
           _advance();
         }
 
-        const auto string = buff.str();
+        const auto string = buf.str();
 
-        if (!string.compare("*")) {
-          co_yield _token<Token::Op::Asterisk>();
-          continue;
-        } else {
-          throw _unexpected("a C operator");
-        }
-      }
-
-      else if (_is_punct()) {
-        switch (_code_point) {
-        case '(':
-          co_yield _token<Token::Punct::OpenParen>();
-          break;
-        case ')':
-          co_yield _token<Token::Punct::CloseParen>();
-          break;
-        case ';':
-          co_yield _token<Token::Punct::Semi>();
-          break;
-        case ',':
-          co_yield _token<Token::Punct::Comma>();
-          break;
-        default:
-          throw std::exception(&"Unhandled punct char "[_code_point]);
-        }
-
-        _advance();
+        co_yield _token<Token::Op>(string);
         continue;
       }
 
       else {
-        throw _unexpected();
+        switch (_code_point) {
+        case '(':
+          co_yield _punct(Token::Punct::OpenParen);
+          break;
+        case ')':
+          co_yield _punct(Token::Punct::CloseParen);
+          break;
+        case ';':
+          co_yield _punct(Token::Punct::Semi);
+          break;
+        case ',':
+          co_yield _punct(Token::Punct::Comma);
+          break;
+        default:
+          throw _unexpected();
+        }
+
+        _advance();
+        continue;
       }
     } while (!_is_eof());
   } catch (std::exception &e) {

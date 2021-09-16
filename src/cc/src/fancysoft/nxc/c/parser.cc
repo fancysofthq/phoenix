@@ -7,55 +7,56 @@
 
 namespace Fancysoft::NXC::C {
 
-void Parser::parse(std::shared_ptr<CST::Root> root, bool single_expression) {
+std::unique_ptr<AST> Parser::parse(bool single_expression) {
   _initialize();
+
   bool an_expression_parsed = false;
+  auto ast = std::make_unique<AST>();
 
   while (!_lexer_done() && (!single_expression || !an_expression_parsed)) {
-    if (_is<Token::Punct::Space>()) {
+    if (_is_punct(Token::Punct::HSpace)) {
       _advance();
       continue;
     }
 
     else if (_is<Token::Id>()) {
-      auto initial_type_node_ptr = _parse_type();
+      auto initial_type_ref = _parse_type_ref();
 
-      if (_is<Token::Punct::Space>()) {
+      if (_is_punct(Token::Punct::HSpace)) {
         // That's a function declaration.
         //
 
         _advance(); // Consume the space
+
         auto function_id_token = _as<Token::Id>();
+        _advance(); // Consume the function id token
 
-        _expect_next<Token::Punct::OpenParen>();
-        _advance();
+        _as_open_paren();
+        _advance(); // Consue the opening parenthesis
 
-        std::vector<std::shared_ptr<CST::Node::Proto::ArgDecl>> args;
+        std::vector<std::shared_ptr<AST::FuncDecl::ArgDecl>> args;
 
         while (_is<Token::Id>()) {
           args.push_back(_parse_arg_decl());
 
-          if (_is<Token::Punct::Comma>()) {
+          if (_is_comma()) {
             _advance();
             continue;
-          } else if (_is<Token::Punct::CloseParen>()) {
+          } else if (_is_close_paren()) {
             _advance();
             break;
           } else {
-            throw _unexpected();
+            throw _unexpected("comma or closing parenthesis");
           }
         }
 
-        _as<Token::Punct::Semi>();
+        _as_semi();
 
-        auto node =
-            CST::Node::Proto(initial_type_node_ptr, function_id_token, args);
-        auto node_ptr = std::make_shared<CST::RootChildNode>(node);
+        auto node = std::make_shared<AST::FuncDecl>(
+            initial_type_ref, function_id_token, args);
 
-        fmt::print(
-            Util::logger.debug(_debug_name()), "Parsed {}\n", node.node_name());
-
-        root->children.push_back(node_ptr);
+        _debug_parsed(node->node_name());
+        ast->add_child(node);
 
         if (!single_expression) {
           _advance();
@@ -83,31 +84,31 @@ void Parser::parse(std::shared_ptr<CST::Root> root, bool single_expression) {
   }
 
   log << std::endl;
+
+  return ast;
 }
 
-std::shared_ptr<CST::Node::Type> Parser::_parse_type() {
+std::shared_ptr<AST::TypeRef> Parser::_parse_type_ref() {
   auto id = _as<Token::Id>();
   _advance();
 
-  unsigned short pointer_depth = 0;
-  while (_is<Token::Op::Asterisk>()) {
-    pointer_depth += 1;
+  std::vector<Token::Op> pointer_tokens;
+  while (_is_op("*")) {
+    pointer_tokens.push_back(_as<Token::Op>());
     _advance();
   }
 
-  auto node = CST::Node::Type(id, pointer_depth);
+  auto node = std::make_shared<AST::TypeRef>(id, pointer_tokens);
+  _debug_parsed(node->node_name());
 
-  fmt::print(
-      Util::logger.debug(_debug_name()), "Parsed {}\n", node.node_name());
-
-  return std::make_shared<CST::Node::Type>(node);
+  return node;
 }
 
-std::shared_ptr<CST::Node::Proto::ArgDecl> Parser::_parse_arg_decl() {
-  auto type = _parse_type();
+std::shared_ptr<AST::FuncDecl::ArgDecl> Parser::_parse_arg_decl() {
+  auto type_ref = _parse_type_ref();
 
   std::optional<Token::Id> id;
-  if (_is<Token::Punct::Space>()) {
+  if (_is_space()) {
     _advance();
 
     id = _if<Token::Id>();
@@ -115,12 +116,10 @@ std::shared_ptr<CST::Node::Proto::ArgDecl> Parser::_parse_arg_decl() {
       _advance();
   }
 
-  auto node = CST::Node::Proto::ArgDecl(type, id);
+  auto node = std::make_shared<AST::FuncDecl::ArgDecl>(type_ref, id);
+  _debug_parsed(node->node_name());
 
-  fmt::print(
-      Util::logger.debug(_debug_name()), "Parsed {}\n", node.node_name());
-
-  return std::make_shared<CST::Node::Proto::ArgDecl>(node);
+  return node;
 }
 
 } // namespace Fancysoft::NXC::C

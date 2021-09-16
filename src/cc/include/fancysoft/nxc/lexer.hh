@@ -20,14 +20,15 @@
 namespace Fancysoft {
 namespace NXC {
 
-template <typename TokenT> struct Lexer {
+/// An abstract lexer yielding *Token* instance copies.
+template <typename Token> struct Lexer {
   /// The unit being lexed.
   const std::shared_ptr<Unit> unit;
 
   Lexer(std::shared_ptr<Unit> unit) : unit(unit) {}
 
   /// Begin the lexing, creating a resumable coroutine.
-  virtual Util::Coro::Generator<TokenT> lex() = 0;
+  virtual Util::Coro::Generator<Token> lex() = 0;
 
   /// Get the current cursor position within the unit.
   ///
@@ -41,6 +42,7 @@ template <typename TokenT> struct Lexer {
     return _cursor;
   }
 
+  /// Check if the lexer has thrown an exception.
   inline std::optional<std::exception> exception() { return _exception; }
 
   void _unread() { unit->source_stream().unget(); }
@@ -80,15 +82,16 @@ protected:
     return Placement(unit, Location(_latest_yieled_cursor, _cursor));
   }
 
-  /// Yield a token implicitly prepending a correct location.
+  /// Yield a token implicitly prepending the correct placement.
   ///
   /// @code{C++}
   /// co_yield _token<StringLiteral>(literal_value)
   /// @endcode
-  template <typename YTokenT, typename... Args> TokenT _token(Args... args) {
+  template <typename YieldedToken, typename... Args>
+  Token _token(Args... args) {
     auto plc = _placement();
     _latest_yieled_cursor = _cursor;
-    return YTokenT(plc, args...);
+    return YieldedToken(plc, args...);
   }
 
   /// Read the next codepoint, returning the previous one.
@@ -103,7 +106,7 @@ protected:
       _debug_codepoint(log);
       fmt::print(log, "` at {}:{}\n", _cursor.row, _cursor.col);
 
-      if (_is_eol()) {
+      if (_is_newline()) {
         _cursor.row += 1;
         _cursor.col = 0;
       } else {
@@ -147,7 +150,7 @@ protected:
   ///
   /// @todo Match EOL in Unicode-correct way.
   /// @see https://www.unicode.org/reports/tr14/
-  inline bool _is_eol() const { return _code_point == '\n'; }
+  inline bool _is_newline() const { return _code_point == '\n'; }
 
   /// Match characters U+0020 (space), U+0009 (horizontal tab) and
   /// U+0013 (vertical tab).

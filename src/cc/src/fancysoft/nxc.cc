@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <iostream>
+#include <stdlib.h>
 
 #include "fancysoft/nxc/panic.hh"
 #include "fancysoft/nxc/program.hh"
@@ -38,6 +39,23 @@ Logger setup_logger() {
 
 Logger Fancysoft::Util::logger = setup_logger();
 
+/// A compiled program emission options.
+enum class Emit { Exe, HLIR, LLIR };
+
+static std::string help_string =
+    "The Fancy Onyx compiler\n"
+    "\n"
+    "Commands:\n"
+    "\n"
+    "  [h]elp           -- Display this help\n"
+    "  [c]ompile <file> -- Compile an Onyx program\n"
+    "\n"
+    "    Flags:\n"
+    "\n"
+    "      -exe -- Emit a single executable file (default)\n"
+    "      -ehl -- Emit Onyx HLIR into current directory\n"
+    "      -ell -- Emit LLVM modules into current directory\n";
+
 int main(int argc, char *argv[]) {
   Fancysoft::Util::logger.enable_thread_id_output = false;
   Fancysoft::Util::logger.enable_time_output = false;
@@ -46,32 +64,55 @@ int main(int argc, char *argv[]) {
     std::filesystem::path progname = argv[0];
     logger.debug() << "Compiler path: " << progname << std::endl;
 
-    std::filesystem::path entry_path;
-
-    switch (argc) {
-    case 2:
-      entry_path = argv[1];
-      entry_path = progname.parent_path() / entry_path;
-      break;
-    default:
-      throw "The compiler expects exactly one argument";
+    if (argc == 1) {
+      std::cout << help_string;
+      exit(EXIT_SUCCESS);
     }
 
-    logger.debug() << "Compiling " << entry_path << std::endl;
+    std::string command = argv[1];
 
-    Fancysoft::NXC::Program program;
-    program.compile(entry_path);
-  } catch (const char *&s) {
-    logger.fatal() << s << std::endl;
-    exit(1);
-  } catch (const std::string *&s) {
-    logger.fatal() << s << std::endl;
-    exit(1);
+    if (!command.compare("h") || !command.compare("help")) {
+      std::cout << help_string;
+      exit(EXIT_SUCCESS);
+    } else if (!command.compare("c") || !command.compare("compile")) {
+      if (argc == 2)
+        throw "An entry file path expected";
+
+      std::filesystem::path entry_path = argv[2];
+      entry_path = progname.parent_path() / entry_path;
+      logger.debug() << "Compiling " << entry_path << std::endl;
+
+      Emit emit = Emit::Exe;
+      std::filesystem::path output_path = "./";
+
+      if (argc > 3) {
+        for (int i = 2; i < argc; i++) {
+          std::string flag = argv[i];
+
+          if (flag.compare("-ehl")) {
+            emit = Emit::HLIR;
+          } else
+            throw "Unrecognized flag " + flag;
+        }
+      }
+
+      Fancysoft::NXC::Program program(entry_path);
+      program.compile();
+
+      switch (emit) {
+      case Emit::HLIR: {
+        logger.debug() << "Emitting HLIR to " << output_path << std::endl;
+        program.emit_hlir(output_path);
+        break;
+      }
+      default:
+        throw "Only HLIR emission (-ehl) is currently implemented";
+      }
+    } else {
+      throw "Unrecognized command: " + command;
+    }
   } catch (const Fancysoft::NXC::Panic panic) {
     logger.error() << "Panic! " << panic.what() << std::endl;
-    exit(1);
-  } catch (...) {
-    logger.fatal() << "Unhandled exception" << std::endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 }

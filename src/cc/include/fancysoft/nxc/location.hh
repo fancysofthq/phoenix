@@ -1,17 +1,13 @@
 #pragma once
 
-#include <filesystem>
-#include <memory>
 #include <optional>
-
-#include <fmt/core.h>
 
 #include "./position.hh"
 
 namespace Fancysoft {
 namespace NXC {
 
-/// A location within an abstract compilation unit.
+/// A spanning location.
 struct Location {
   Position start;
   std::optional<Position> end;

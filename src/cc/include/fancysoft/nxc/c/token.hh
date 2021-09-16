@@ -13,105 +13,106 @@ namespace Token {
 
 using Base = NXC::Token;
 
-namespace Punct {
+// TODO: Parser calls `_is_punct(Token::Punct::OpenParen)`.
+// NOTE: Newline and HSpace don't preserve the original amount of characters.
+struct Punct : Base {
+  static const char *token_name() { return "<C/Punct>"; }
 
-struct EOL : Base {
-  using Base::Base;
+  enum Kind {
+    Newline,
+    HSpace, ///< Horizontal space.
+    Comma,
+    Semi,
+    OpenParen,
+    CloseParen,
+  };
 
-  const char *name() const override { return "<C/Punct/EOL>"; }
-  const void print(std::ostream &stream) const override { stream << '\n'; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
+  Kind kind;
 
-struct Space : Base {
-  using Base::Base;
+  static const char *kind_to_expected(Kind kind) {
+    switch (kind) {
+    case Newline:
+      return "newline";
+    case HSpace:
+      return "space";
+    case Comma:
+      return "comma";
+    case Semi:
+      return "semicolon";
+    case OpenParen:
+      return "opening parenthesis";
+    case CloseParen:
+      return "closing parenthesis";
+    }
+  }
 
-  const char *name() const override { return "<C/Punct/Space>"; }
-  const void print(std::ostream &stream) const override { stream << ' '; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
+  Punct(Placement plc, Kind kind) : Base(plc), kind(kind) {}
 
-struct Comma : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<C/Punct/Comma>"; }
-  const void print(std::ostream &stream) const override { stream << ','; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct Semi : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<C/Punct/Semi>"; }
-  const void print(std::ostream &stream) const override { stream << ';'; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct OpenParen : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<C/Punct/OpenParen>"; }
-  const void print(std::ostream &stream) const override { stream << '('; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct CloseParen : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<C/Punct/CloseParen>"; }
-  const void print(std::ostream &stream) const override { stream << ')'; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-} // namespace Punct
-
-namespace Op {
-
-struct Asterisk : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<C/Op/Asterisk>"; }
-  const void print(std::ostream &stream) const override { stream << '*'; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-}; // namespace Op
-
-struct Id : Base {
-  std::string value;
-
-  Id(Placement placement, std::string value) : Base(placement), value(value) {}
-
-  const char *name() const override { return "<C/Id>"; }
-  const void print(std::ostream &stream) const override { stream << value; };
+  const void print(std::ostream &stream) const override {
+    stream << kind_to_char(kind);
+  };
 
   const void inspect(std::ostream &stream) const override {
-    stream << "<C/Id `" << value << "`>";
+    stream << "<C/Punct ";
+
+    if (kind == Newline)
+      stream << "\\n";
+    else
+      stream << kind_to_char(kind);
+
+    stream << ">";
   };
 
-  const std::string inspect() const override {
-    return "<C/Id `" + value + "`>";
+private:
+  static char kind_to_char(Kind kind) {
+    switch (kind) {
+    case Newline:
+      return '\n';
+    case HSpace:
+      return ' ';
+    case Comma:
+      return ',';
+    case Semi:
+      return ';';
+    case OpenParen:
+      return '(';
+    case CloseParen:
+      return ')';
+    }
+  }
+};
+
+struct Op : Base {
+  static const char *token_name() { return "<C/Op>"; }
+
+  std::string op;
+
+  Op(Placement plc, std::string op) : Base(plc), op(op) {}
+
+  const void print(std::ostream &stream) const override { stream << op; };
+
+  const void inspect(std::ostream &stream) const override {
+    stream << "<C/Op " << op << ">";
   };
 };
 
-using Any = std::variant<
-    Punct::EOL,
-    Punct::Space,
-    Punct::Comma,
-    Punct::Semi,
-    Punct::OpenParen,
-    Punct::CloseParen,
+// A C id, which may consist of multiple words, e.g. `unsigned int`.
+struct Id : Base {
+  static const char *token_name() { return "<C/Id>"; }
 
-    Op::Asterisk,
+  // The id string is guaranteed to not contain any excessive spaces.
+  std::string id;
 
-    Id>;
+  Id(Placement plc, std::string id) : Base(plc), id(id) {}
+
+  const void print(std::ostream &stream) const override { stream << id; };
+
+  const void inspect(std::ostream &stream) const override {
+    stream << "<C/Id " << id << ">";
+  };
+};
+
+using Any = std::variant<Punct, Op, Id>;
 
 } // namespace Token
 } // namespace C

@@ -16,6 +16,8 @@ protected:
   inline const char *_debug_name() const override { return "C/Lexer"; }
 
 private:
+  /// Check if the code point could be a part of an operator token. Note that an
+  /// operator may consist of multiple code points (e.g. `+=`).
   inline bool _is_op() const {
     switch (_code_point) {
     case '=':
@@ -33,17 +35,7 @@ private:
     }
   }
 
-  inline bool _is_punct() const {
-    switch (_code_point) {
-    case '(':
-    case ')':
-    case ';':
-    case ',':
-      return true;
-    default:
-      return false;
-    }
-  }
+  auto _punct(Token::Punct::Kind kind) { return _token<Token::Punct>(kind); }
 };
 
 } // namespace C

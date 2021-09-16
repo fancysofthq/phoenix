@@ -1,35 +1,29 @@
 #pragma once
 
-#include <fstream>
-#include <istream>
-#include <memory>
-#include <ostream>
-
-#include "../c/ast.hh"
 #include "../file.hh"
-#include "./ast.hh"
-#include "./cst.hh"
+#include "../module.hh"
+#include "./hlir.hh"
 
 namespace Fancysoft {
 namespace NXC {
 namespace Onyx {
 
-/// A physical Onyx file.
-struct File : NXC::File<CST::Root> {
-  File(std::filesystem::path path) : NXC::File<CST::Root>(path) {
-    _stream = std::ifstream(path);
+/// An Onyx source file.
+struct File : NXC::File, Module, std::enable_shared_from_this<File> {
+  using NXC::File::File;
 
-    if (_stream.bad()) {
-      throw OpenError(path);
-    }
-  }
+  /// Parse the file.
+  Position parse() override;
 
-  ~File() { _stream.close(); }
+  /// Compile the file. Would parse implicitly if not parsed yet.
+  void compile(Program *) override;
 
-  std::istream &source_stream() override;
+  const AST *ast() { return _ast.get(); }
+  const HLIR *hlir() { return _hlir.get(); }
 
 private:
-  std::ifstream _stream;
+  std::unique_ptr<const AST> _ast;
+  std::shared_ptr<const HLIR> _hlir;
 };
 
 } // namespace Onyx

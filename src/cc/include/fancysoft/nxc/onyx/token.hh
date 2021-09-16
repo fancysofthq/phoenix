@@ -15,222 +15,226 @@ namespace Token {
 
 using Base = NXC::Token;
 
-namespace Keyword {
+struct Keyword : Base {
+  static const char *token_name() { return "<Keyword>"; }
 
-struct Extern : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Keyword/Extern>"; }
-  const void print(std::ostream &stream) const override { stream << "extern"; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct Let : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Keyword/Let>"; }
-  const void print(std::ostream &stream) const override { stream << "let"; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct Final : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Keyword/Final>"; }
-  const void print(std::ostream &stream) const override { stream << "final"; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct UnsafeBang : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Keyword/Unsafe!>"; }
-
-  const void print(std::ostream &stream) const override {
-    stream << "unsafe!";
+  enum Kind {
+    Extern,
+    Let,
+    Final,
+    UnsafeBang,
+    FragileBang,
+    ThreadsafeBang,
   };
 
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct FragileBang : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Keyword/Fragile!>"; }
-
-  const void print(std::ostream &stream) const override {
-    stream << "fragile!";
+  static const char *kind_to_string(Kind kind) {
+    switch (kind) {
+    case Extern:
+      return "extern";
+    case Let:
+      return "let";
+    case Final:
+      return "final";
+    case UnsafeBang:
+      return "unsafe!";
+    case FragileBang:
+      return "fragile!";
+    case ThreadsafeBang:
+      return "threadsafe!";
+    }
   };
 
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
+  static std::optional<Kind> parse_kind(std::string string) {
+    if (!string.compare("extern"))
+      return Extern;
+    else if (!string.compare("let"))
+      return Let;
+    else if (!string.compare("final"))
+      return Final;
+    else if (!string.compare("unsafe!"))
+      return UnsafeBang;
+    else if (!string.compare("fragile!"))
+      return FragileBang;
+    else if (!string.compare("threadsafe!"))
+      return ThreadsafeBang;
+    else
+      return std::nullopt;
+  }
 
-} // namespace Keyword
+  Kind kind;
 
-namespace Punct {
-
-struct EOL : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Punct/EOL>"; }
-  const void print(std::ostream &stream) const override { stream << '\n'; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct Space : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Punct/Space>"; }
-  const void print(std::ostream &stream) const override { stream << ' '; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct OpenParen : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Punct/OpenParen>"; }
-  const void print(std::ostream &stream) const override { stream << '('; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct CloseParen : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Punct/CloseParen>"; }
-  const void print(std::ostream &stream) const override { stream << ')'; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct Comma : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Punct/Comma>"; }
-  const void print(std::ostream &stream) const override { stream << ','; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-} // namespace Punct
-
-namespace BuiltInOp {
-
-struct Assign : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Op/Assign>"; }
-  const void print(std::ostream &stream) const override { stream << '='; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-struct AddressOf : Base {
-  using Base::Base;
-
-  const char *name() const override { return "<Op/PointerOf>"; }
-  const void print(std::ostream &stream) const override { stream << '&'; };
-  const void inspect(std::ostream &stream) const override { stream << name(); };
-  const std::string inspect() const override { return name(); };
-};
-
-} // namespace BuiltInOp
-
-/// A C identifier.
-struct CId : Base {
-  std::string id;
-  CId(Placement plc, std::string id) : Base(plc), id(id) {}
-
-  const char *name() const override { return "<CId>"; }
+  Keyword(Placement plc, Kind kind) : Base(plc), kind(kind) {}
 
   const void print(std::ostream &stream) const override {
-    stream << '$' << id;
+    stream << kind_to_string(kind);
   };
 
   const void inspect(std::ostream &stream) const override {
-    stream << "<CId `$" << id << "`>";
+    stream << "<Keyword " << kind_to_string(kind) << ">";
+  };
+};
+
+struct Punct : Base {
+  static const char *token_name() { return "<Punct>"; }
+
+  enum Kind {
+    Newline,
+    HSpace, ///< Horizontal space.
+    Comma,
+    OpenParen,
+    CloseParen,
   };
 
-  const std::string inspect() const override { return "<CId `$" + id + "`>"; };
+  Kind kind;
+
+  /// Used in debug messages, e.g. "Panic! Expected space".
+  static std::string kind_to_expected(Kind kind) {
+    switch (kind) {
+    case Newline:
+      return "newline";
+    case HSpace:
+      return "space";
+    case Comma:
+      return "comma";
+    case OpenParen:
+      return "opening parenthesis";
+    case CloseParen:
+      return "closing parenthesis";
+    }
+  }
+
+  Punct(Placement plc, Kind kind) : Base(plc), kind(kind) {}
+
+  const void print(std::ostream &stream) const override {
+    stream << kind_to_char(kind);
+  };
+
+  const void inspect(std::ostream &stream) const override {
+    stream << "<Punct ";
+
+    if (kind == Newline)
+      stream << "\\n";
+    else if (kind == HSpace)
+      stream << "(space)";
+    else
+      stream << kind_to_char(kind);
+
+    stream << ">";
+  };
+
+private:
+  static char kind_to_char(Kind kind) {
+    switch (kind) {
+    case Newline:
+      return '\n';
+    case HSpace:
+      return ' ';
+    case Comma:
+      return ',';
+      return ';';
+    case OpenParen:
+      return '(';
+    case CloseParen:
+      return ')';
+    }
+  }
 };
 
 /// An identifier, e.g. @c foo .
 struct Id : Base {
-  std::string value;
-  Id(Placement plc, std::string value) : Base(plc), value(value) {}
+  static const char *token_name() { return "<Id>"; }
 
-  const char *name() const override { return "<Id>"; }
-  const void print(std::ostream &stream) const override { stream << value; };
+  std::string id;
+  Id(Placement plc, std::string id) : Base(plc), id(id) {}
+
+  const void print(std::ostream &stream) const override { stream << id; };
 
   const void inspect(std::ostream &stream) const override {
-    stream << "<Id `" << value << "`>";
+    stream << "<Id " << id << ">";
   };
-
-  const std::string inspect() const override { return "<Id `" + value + "`>"; };
 };
 
-/// A generic operator, e.g. @c / .
-struct Op : Base {
-  std::string value;
-  Op(Placement plc, std::string value) : Base(plc), value(value) {}
+/// A C identifier.
+struct CId : Base {
+  static const char *token_name() { return "<CId>"; }
 
-  const char *name() const override { return "<Op>"; }
-  const void print(std::ostream &stream) const override { stream << value; };
+  /// A C id may consist of multiple words, and it doesn't include pointers.
+  /// NOTE: It is always normalized, e.g. `"long int"`, not `"long   int"`.
+  std::string id;
 
-  const void inspect(std::ostream &stream) const override {
-    stream << "<Op `" << value << "`>";
+  /// Is it wrapped in backticks? E.g. `` $`unsigned int` ``.
+  bool is_wrapped;
+
+  CId(Placement plc, std::string id) : Base(plc), id(id) {}
+
+  const void print(std::ostream &stream) const override {
+    stream << '$';
+
+    if (is_wrapped)
+      stream << "`";
+
+    stream << id;
+
+    if (is_wrapped)
+      stream << "`";
   };
 
-  const std::string inspect() const override { return "<Op `" + value + "`>"; };
+  const void inspect(std::ostream &stream) const override {
+    stream << "<CId $`" << id << "`>";
+  };
+};
+
+/// An operator, e.g. @c / .
+struct Op : Base {
+  static const char *token_name() { return "<Op>"; }
+
+  std::string op;
+  Op(Placement plc, std::string op) : Base(plc), op(op) {}
+
+  const void print(std::ostream &stream) const override { stream << op; };
+
+  const void inspect(std::ostream &stream) const override {
+    stream << "<Op " << op << ">";
+  };
 };
 
 /// A string literal, e.g. @c "foo" .
 struct StringLiteral : Base {
-  std::string value;
+  static const char *token_name() { return "<StringLiteral>"; }
 
-  StringLiteral(Placement plc, std::string value) : Base(plc), value(value) {}
+  std::string string;
 
-  const char *name() const override { return "<StringLiteral>"; }
+  StringLiteral(Placement plc, std::string string) :
+      Base(plc), string(string) {}
 
   const void print(std::ostream &stream) const override {
-    stream << '"' << value << "'";
+    stream << '"' << string << "'";
   };
 
   const void inspect(std::ostream &stream) const override {
-    stream << "<StringLiteral \"" << value << "\">";
-  };
-
-  const std::string inspect() const override {
-    return "<StringLiteral \"" + value + "\">";
+    stream << "<StringLiteral \"" << string << "\">";
   };
 };
 
-using Any = std::variant<
-    Keyword::Extern,
-    Keyword::Let,
-    Keyword::Final,
-    Keyword::UnsafeBang,
+struct CStringLiteral : Base {
+  static const char *token_name() { return "<CStringLiteral>"; }
 
-    Punct::EOL,
-    Punct::Space,
-    Punct::OpenParen,
-    Punct::CloseParen,
-    Punct::Comma,
+  std::string string;
 
-    BuiltInOp::Assign,
-    BuiltInOp::AddressOf,
+  CStringLiteral(Placement plc, std::string string) :
+      Base(plc), string(string) {}
 
-    CId,
-    Id,
-    Op,
-    StringLiteral>;
+  const void print(std::ostream &stream) const override {
+    stream << "$\"" << string << "'";
+  };
+
+  const void inspect(std::ostream &stream) const override {
+    stream << "<CStringLiteral \"" << string << "\">";
+  };
+};
+
+using Any =
+    std::variant<Keyword, Punct, Id, CId, Op, StringLiteral, CStringLiteral>;
 
 } // namespace Token
 

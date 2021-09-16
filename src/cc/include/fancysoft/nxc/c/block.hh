@@ -1,23 +1,30 @@
 #pragma once
 
+#include <memory>
+
 #include "../block.hh"
-#include "./cst.hh"
+#include "./ast.hh"
 
 namespace Fancysoft {
 namespace NXC {
+
+struct Program;
+
 namespace C {
 
-/// A physical block of C code located in an Onyx source file.
-struct Block : NXC::Block<CST::Root> {
+/// A block of C code located in an Onyx source file.
+struct Block : NXC::Block, std::enable_shared_from_this<Block> {
   Block(Placement placement, std::istream &stream) :
-      NXC::Block<CST::Root>(placement), _stream(stream) {}
+      NXC::Block(placement), _stream(stream) {}
 
-  Position parse(std::shared_ptr<Block> unit_ptr);
+  std::istream &source_stream() override { return _stream; }
+  Position parse() override;
 
-  std::istream &source_stream() override;
+  const AST *ast() const { return _ast.get(); }
 
 private:
   std::istream &_stream;
+  std::unique_ptr<const AST> _ast;
 };
 
 } // namespace C

@@ -3,101 +3,85 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <ranges>
+#include <set>
+#include <variant>
 #include <vector>
 
+#include "../../util/variant.hh"
 #include "../node.hh"
 #include "../panic.hh"
-#include "./cst.hh"
+#include "./token.hh"
 
 namespace Fancysoft {
 namespace NXC {
 namespace C {
 
-/// A C (language) Abstract Syntax Tree per Onyx unit.
-/// It contains declarations and concrete definitions.
-namespace AST {
+/// A C Abstract Syntax Tree.
+struct AST : NXC::Node {
+  struct TypeRef;
+  struct FuncDecl;
 
-namespace Node {
+  using TopLevelNode = std::variant<std::shared_ptr<FuncDecl>>;
 
-enum class BuiltInType {
-  Void,
-  Char,
-};
+  /// A type reference, e.g. `int` or `const unsigned int **`.
+  struct TypeRef : NXC::Node {
+    // const Token::Keyword modifier; // TODO:
+    const Token::Id id_token;
+    const std::vector<Token::Op> pointer_tokens;
 
-struct Type;
-struct Proto;
+    TypeRef(Token::Id id_token, std::vector<Token::Op> pointer_tokens) :
+        id_token(id_token), pointer_tokens(pointer_tokens) {}
 
-} // namespace Node
-
-struct Node::Type : NXC::Node {
-  const std::shared_ptr<CST::Node::Type> cst_node;
-  Type(std::shared_ptr<CST::Node::Type> cst_node) : cst_node(cst_node) {}
-
-  BuiltInType id() const {
-    if (cst_node->id.value == "void") {
-      return BuiltInType::Void;
-    } else if (cst_node->id.value == "char") {
-      return BuiltInType::Char;
-    } else {
-      throw Panic("Unrecognized C type: " + cst_node->id.value);
-    }
-  };
-
-  unsigned short pointer_depth() const { return cst_node->pointer_depth; };
-
-  const char *node_name() const override { return "<C/Type>"; }
-  void inspect(std::ostream &, unsigned short indent = 0) const override;
-};
-
-struct Node::Proto : NXC::Node {
-  struct ArgDecl : NXC::Node {
-    std::shared_ptr<CST::Node::Proto::ArgDecl> cst_node;
-
-    ArgDecl(std::shared_ptr<CST::Node::Proto::ArgDecl> cst_node) :
-        cst_node(cst_node) {}
-
-    Type type() const { return Type(cst_node->type); };
-
-    std::optional<std::string> id() const {
-      if (cst_node->name.has_value())
-        return cst_node->name.value().value;
-      else
-        return std::nullopt;
-    };
-
-    const char *node_name() const override { return "<C/Proto/ArgDecl>"; }
+    int pointer_depth() const { return pointer_tokens.size(); }
+    const char *node_name() const override { return "<C/TypeRef>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
   };
 
-  const std::shared_ptr<CST::Node::Proto> cst_node;
+  /// A C function prototype declaration.
+  struct FuncDecl : NXC::Node {
+    struct ArgDecl : NXC::Node {
+      std::shared_ptr<TypeRef> type_node;
+      const std::optional<Token::Id> id_token;
 
-  Proto(std::shared_ptr<CST::Node::Proto> cst_node) : cst_node(cst_node) {}
+      ArgDecl(
+          std::shared_ptr<TypeRef> type_node,
+          std::optional<Token::Id> id_token) :
+          type_node(type_node), id_token(id_token) {}
 
-  Type return_type() const { return Type(cst_node->return_type); };
-  std::string id() const { return cst_node->name.value; };
+      const char *node_name() const override { return "<C/ArgDecl>"; }
+      void inspect(std::ostream &, unsigned short indent = 0) const override;
+    };
 
-  std::vector<ArgDecl> arguments() const {
-    std::vector<ArgDecl> vec;
+    std::shared_ptr<TypeRef> return_type_node;
+    const Token::Id id_token;
+    std::vector<std::shared_ptr<ArgDecl>> arg_nodes;
 
-    for (auto &node : cst_node->args) {
-      vec.push_back(ArgDecl(node));
-    }
+    FuncDecl(
+        std::shared_ptr<TypeRef> return_type_node,
+        Token::Id id_token,
+        std::vector<std::shared_ptr<ArgDecl>> arg_nodes) :
+        return_type_node(return_type_node),
+        id_token(id_token),
+        arg_nodes(arg_nodes) {}
 
-    return vec;
+    const char *node_name() const override { return "<C/FuncDecl>"; }
+    void inspect(std::ostream &, unsigned short indent = 0) const override;
   };
 
-  const char *node_name() const override { return "<C/Proto>"; }
+  /// Append a child node.
+  void add_child(TopLevelNode node) { _children.push_back(node); };
+
+  /// Return a constant reference to the children nodes vector.
+  const std::vector<TopLevelNode> &chidren() const { return _children; }
+
+  const char *node_name() const override { return "<C/AST>"; }
   void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+private:
+  std::vector<TopLevelNode> _children;
 };
 
-struct Root {
-  std::map<std::string, std::shared_ptr<AST::Node::Proto>> prototypes;
-
-  // const char *node_name() const override { return "<C/Root>"; }
-  // void inspect(std::ostream &, unsigned short indent = 0) const override;
-};
-
-} // namespace AST
 } // namespace C
 } // namespace NXC
 } // namespace Fancysoft

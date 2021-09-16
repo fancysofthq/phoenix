@@ -1,6 +1,6 @@
 #include <fmt/ostream.h>
 
-#include "fancysoft/nxc/c/cst.hh"
+#include "fancysoft/nxc/c/ast.hh"
 
 namespace Fancysoft::NXC::C {
 
@@ -12,29 +12,28 @@ static std::string attribute_prefix(unsigned short indent) {
   return std::string(indent * 3 + 3, ' ');
 }
 
-void CST::Root::inspect(std::ostream &stream, unsigned short indent) const {
+void AST::inspect(std::ostream &stream, unsigned short indent) const {
   fmt::print(stream, "{0}{1}\n", node_prefix(indent), node_name());
 
-  for (auto &node : this->children) {
+  for (auto &node : this->_children) {
     std::visit(
-        [&stream, indent](auto &&node) { node.inspect(stream, indent + 1); },
-        *node.get());
+        [&stream, indent](auto &&node) { node->inspect(stream, indent + 1); },
+        node);
   }
 }
 
-void CST::Node::Type::inspect(
-    std::ostream &stream, unsigned short indent) const {
+void AST::TypeRef::inspect(std::ostream &stream, unsigned short indent) const {
   fmt::print(
       stream,
       "{0}{1}\n{2}Id: {3}\n{2}Pointer depth: {4}\n",
       node_prefix(indent),
       node_name(),
       attribute_prefix(indent),
-      this->id.inspect(),
-      this->pointer_depth);
+      this->id_token.Token::inspect(),
+      this->pointer_depth());
 }
 
-void CST::Node::Proto::ArgDecl::inspect(
+void AST::FuncDecl::ArgDecl::inspect(
     std::ostream &stream, unsigned short indent) const {
   fmt::print(
       stream,
@@ -42,26 +41,25 @@ void CST::Node::Proto::ArgDecl::inspect(
       node_prefix(indent),
       node_name(),
       attribute_prefix(indent),
-      this->name.has_value() ? this->name->inspect() : "");
+      this->id_token.has_value() ? this->id_token->Token::inspect() : "");
 
-  this->type->inspect(stream, indent + 1);
+  this->type_node->inspect(stream, indent + 1);
 }
 
-void CST::Node::Proto::inspect(
-    std::ostream &stream, unsigned short indent) const {
+void AST::FuncDecl::inspect(std::ostream &stream, unsigned short indent) const {
   fmt::print(
       stream,
       "{0}{1}\n{2}Id: {3}\n{2}Return type:\n",
       node_prefix(indent),
       node_name(),
       attribute_prefix(indent),
-      this->name.inspect());
+      this->id_token.Token::inspect());
 
-  this->return_type->inspect(stream, indent + 1);
+  this->return_type_node->inspect(stream, indent + 1);
 
   fmt::print(stream, "{0}Arguments:\n", attribute_prefix(indent));
 
-  for (auto &arg : this->args) {
+  for (auto &arg : this->arg_nodes) {
     arg->inspect(stream, indent + 1);
   }
 }

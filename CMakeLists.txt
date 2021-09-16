@@ -105,19 +105,21 @@ target_link_libraries(fancysoft.util.logger INTERFACE fancysoft.util.null_stream
 #
 
 add_executable(fancysoft.nxc
-  src/cc/src/fancysoft/nxc/c/cst.cc
-  src/cc/src/fancysoft/nxc/c/parser.cc
-  src/cc/src/fancysoft/nxc/c/lexer.cc
+  src/cc/src/fancysoft/nxc/c/ast.cc
   src/cc/src/fancysoft/nxc/c/block.cc
+  src/cc/src/fancysoft/nxc/c/hlir.cc
+  src/cc/src/fancysoft/nxc/c/lexer.cc
+  src/cc/src/fancysoft/nxc/c/parser.cc
 
+  src/cc/src/fancysoft/nxc/onyx/ast.cc
   src/cc/src/fancysoft/nxc/onyx/file.cc
-  src/cc/src/fancysoft/nxc/onyx/cst.cc
+  src/cc/src/fancysoft/nxc/onyx/hlir.cc
   src/cc/src/fancysoft/nxc/onyx/lexer.cc
   src/cc/src/fancysoft/nxc/onyx/parser.cc
 
-  src/cc/src/fancysoft/nxc/module.cc
-  src/cc/src/fancysoft/nxc/program.cc
   src/cc/src/fancysoft/nxc/placement.cc
+  src/cc/src/fancysoft/nxc/program.cc
+
   src/cc/src/fancysoft/nxc.cc
 )
 

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <memory>
 
 #include "fancysoft/nxc/c/block.hh"
@@ -5,12 +6,12 @@
 
 namespace Fancysoft::NXC::C {
 
-std::istream &Block::source_stream() { return _stream; }
-
-Position Block::parse(std::shared_ptr<Block> unit_ptr) {
-  auto lexer = std::make_shared<Lexer>(unit_ptr);
+Position Block::parse() {
+  assert(!_parsed);
+  auto lexer = std::make_shared<Lexer>(shared_from_this());
   Parser parser(lexer);
-  parser.parse(this->cst, true);
+  _ast = std::move(parser.parse(true));
+  _parsed = true;
   return lexer->cursor();
 }
 

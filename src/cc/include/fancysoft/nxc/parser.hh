@@ -19,7 +19,7 @@ namespace Fancysoft {
 namespace NXC {
 
 /// OPTIMIZE: Make the template argument `LexerT<TokenT>` instead.
-template <class LexerT, class TokenT> struct Parser {
+template <typename LexerT, typename TokenT> struct Parser {
   static_assert(
       std::is_base_of<Lexer<TokenT>, LexerT>::value,
       "`LexerT` must derive from `NXC::Lexer<TokenT>`");
@@ -36,7 +36,9 @@ private:
   void _debug_token(std::ostream &output) const {
     std::visit(
         [&output](auto &&token) {
-          output << "Lexer yielded " << token.inspect() << '\n';
+          output << "Lexer yielded ";
+          token.inspect(output);
+          output << '\n';
         },
         _token());
   }
@@ -46,6 +48,10 @@ protected:
   const std::shared_ptr<LexerT> _lexer;
 
   virtual const char *_debug_name() const = 0;
+
+  void _debug_parsed(std::string node_name) {
+    fmt::print(Util::logger.debug(_debug_name()), "Parsed {}\n", node_name);
+  }
 
   /// Must be called before `_advance()`.
   /// It fills up `_token()` with the next token value.
@@ -97,22 +103,14 @@ protected:
       throw "The token container is empty";
   }
 
-  /// Return a pointer to generic token
-  /// from a *token* variant reference.
-  const NXC::Token *_to_generic_token(const TokenT &token) const {
-    return Util::Variant::option<const NXC::Token>(token);
-  }
-
-  // NXC::Node<class T> _to_generic_node(const CSTNodeT)
-
   /// Advance and expect the next token to be `T`, returning its ref.
-  template <class T> const T &_expect_next() {
+  template <class T> const T &_next_as() {
     _advance();
 
     if (auto matching = std::get_if<T>(&_token())) {
       return *matching;
     } else {
-      throw _unexpected();
+      throw _unexpected(T::token_name());
     }
   }
 
@@ -181,7 +179,7 @@ protected:
     return std::visit(
         [this](auto &&token) {
           return Panic(
-              fmt::format("Unexpected token {}", token.name()),
+              fmt::format("Unexpected token {}", token.token_name()),
               token.placement);
         },
         this->_token());
@@ -189,12 +187,14 @@ protected:
 
   /// Return an unexpected token panic with message
   /// telling what was expected instead.
-  Panic _expected(const std::string what) const {
+  Panic _unexpected(const std::string what_expected) const {
     return std::visit(
-        [this, what](auto &&token) {
+        [this, what_expected](auto &&token) {
           return Panic(
               fmt::format(
-                  "Unexpected token {}, expected {}", token.name(), what),
+                  "Unexpected token {}, expected {}",
+                  token.token_name(),
+                  what_expected),
               token.placement);
         },
         this->_token());
