@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <tuple>
 #include <variant>
 
@@ -98,6 +99,26 @@ constexpr std::size_t index() {
   } else {
     return index<VariantT, ElementT, idx + 1>();
   }
+}
+
+/// Create a downcast copy of `SourceT` if it contains a value from `TargetT`.
+/// Otherwise throws `std::bad_variant_access`.
+template <typename TargetT, typename SourceT> TargetT downcast(SourceT &from) {
+  std::optional<TargetT> result;
+
+  std::visit(
+      [&result](auto &option) {
+        using OptionT = decltype(option);
+
+        if constexpr (std::is_convertible_v<std::decay_t<OptionT>, TargetT>) {
+          result = TargetT(option);
+        } else {
+          throw std::bad_variant_access{};
+        }
+      },
+      from);
+
+  return result.value();
 }
 
 /// Get a typed option reference (safe).

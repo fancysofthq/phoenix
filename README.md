@@ -19,6 +19,16 @@ Modern general-purpose weakly typed language for development of arbitrary progra
 Onyx is designed to run on modern machines where MCUs, FPUs and even NPUs are ubiquitous and C standard library is implemented.
 This allows to safely assume that programs written in Onyx can make use of dynamic memory, floating point operations, tensor arithmetic and common OS routines such as signals and events.
 
+TODO: A major language version is targeted at mainstream machines.
+For example, when the QPU (Quantum Compute Unit) becomes ubiquitous, the language shall include primitives to operate with Quantum Bits.
+Shifting to a new computing capatibilities requires bump of the language major version.
+
+A new major language version implies the need to rewrite old code to use new features.
+For example, if there was no built-in threading routines in Onyx 1.0, existing code would rely on some third-party thread management.
+Once threading is built into language, there is no need to maintain those third-party libraries for the new language version anymore.
+If it was a minor release instead, a threading library would only support, say, Onyx till version 1.5 (where the feature is added), but not higher, which would be confusing.
+Instead, the library continues support for 1.* language versions, but drops support for 2.*.
+
 ## Examples
 
 Examples use mixed syntax to demonstrate its flexibility.
@@ -375,9 +385,55 @@ end
 # @mutexunlock(list)
 ```
 
+Classes in FNXC enjoy ARC with syncronous mark-and-sweep alhorithm to avoid dangling cyclic referecnes.
+
+```nx
+decl class Post;
+
+class User
+  final posts : List<Post>
+end
+
+class Post
+  let author : User
+end
+
+# user.strongrc += 1 == 1
+# user.posts.rc += 1 == 1
+final user = User.new()
+
+# post.strongrc += 1 == 1
+final post = Post.new()
+
+# user.rc += 1 == 1
+post.author = user
+
+# post.rc += 1 == 1
+user.posts.add(post)
+
+# post.strongrc -= 1 == 0 -> check attrs
+#   author.strongrc > 0 -> stop
+@finalize(post)
+
+# user.strongrc -= 1 == 0 -> check attrs
+#   user.posts.strongrc == 0 -> check elements (need to declare a way to do so)
+#     user.posts[0].strongrc == 0 -> check attrs
+#     user.posts[0].author == user -> mark(user)
+#     user.posts[0] has all attrs marked -> mark(user.posts[0])
+#   user.posts has all attrs marked -> mark(user.posts)
+# user has all attrs and self marked -> finalize(user) (unmarks user in the beginning)
+#   user.posts.rc -= 1 == 0 -> finalize(user.posts)
+#     user.posts[0].rc -= 1 == 0 -> finalize(user.posts[0])
+#       user.posts[0].author.rc -= 1 == 0, but user is not marked -> skip user
+#     free(user.posts[0])
+#   free(user.posts)
+# free(user)
+@finalize(user)
+```
+
 #### `String`
 
-A `String` maintains a mutable dynamically-allocated UTF-8 encoded null-terminated multi-byte string buffer (NTMBS).
+A `String` maintains a mutable dynamically-allocated UTF-8 encoded null-terminated multi-byte string (NTMBS) buffer.
 
 A string literal in Onyx resolves to a `String`, i.e. a dynamically allocated class instance.
 
@@ -739,7 +795,7 @@ The C code would be parsed to find declarations, so that those declarations woul
 
 ```nx
 extern #include "stdio.h"
-final message = "Hello, world!\0"
+final message : $char* = $"Hello, world!"
 unsafe! $puts(&message)
 ```
 
@@ -769,25 +825,44 @@ Instead, an explicit function declaration may be used:
 
 ```nx
 extern void puts(char*);
-final message = "Hello, world!\0"
+final message = $"Hello, world!"
 unsafe! $puts(&message)
 ```
 
 ### C interop roadmap
 
-*Inline* in current contexts means "inside an Onyx file".
+*Internal* in current context means "inside an Onyx file".
 *External* means reading from an external C source file.
 
-* [ ] Inline C function declarations;
-* [ ] Inline variable declarations;
-* [ ] Inline C preprocessor directives:
+* [x] Internal C function declarations;
+* [ ] Internal variable declarations;
+
+* [ ] Internal C preprocessor directives:
   * [ ] `#define`, `#ifdef`, `#endif`;
-* [ ] Inline blocks of C code;
+
+* [ ] Internal blocks of C code (`extern {}`);
   * [ ] C-style comments within those blocks;
+
 * [ ] Parsing external C includes without function definitions;
-* [ ] Inline and external C function definitions, compiled by the Onyx compiler.
+* [ ] Internal and external C function definitions, compiled by the Onyx compiler;
+
+* [ ] Call Onyx code from internal C function definitions, e.g.
+
+    ```nx
+    extern void main() {
+      $my_main<T>(stuff); // Yep, reverse. Must be `nothrow`.
+      void* nx_string_class_ref = $"foo"; // Has one ref. Nullptr if failed to allocate
+      $@deref(nx_string_class_ref);
+    }
+    ```
+
+* [ ] Vendor-specific features (e.g. GCC vs CLang code);
 
 ## Development
 
 Never use C++ `class` declarations.
 Just don't.
+
+## Usage
+
+`--nostd` option disables classes, threading, IO, memory modules, leaving only those features not requiring libc.

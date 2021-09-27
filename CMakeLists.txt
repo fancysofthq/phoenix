@@ -73,6 +73,20 @@ else ()
 
 endif ()
 
+add_definitions(-D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING)
+
+cmake_policy(SET CMP0069 NEW)
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT IPO_SUPPORTED)
+
+if (IPO_SUPPORTED)
+  message(STATUS "Interprocedural optimization is enabled")
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+  message(STATUS "Interprocedural optimization is not supported")
+endif()
+
 # Project setup
 #
 
@@ -86,12 +100,15 @@ message(VERBOSE "fmt_INCLUDE_DIR == ${fmt_INCLUDE_DIR}")
 find_path(fmt_INCLUDE_DIR fmt/core.h REQUIRED)
 include_directories(${fmt_INCLUDE_DIR})
 
-find_package(CLang 12 REQUIRED)
-message(VERBOSE "CLang_INCLUDE_DIRS == ${CLang_INCLUDE_DIRS}")
-message(VERBOSE "CLang_LIBRARY_DIRS == ${CLang_LIBRARY_DIRS}")
-find_path(CLang_INCLUDE_DIRS clang-c/Index.h REQUIRED)
-include_directories(${CLang_INCLUDE_DIRS})
-link_directories(${CLang_LIBRARY_DIRS})
+find_package(LLVM REQUIRED CONFIG)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+include_directories(${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+
+find_package(LLD REQUIRED CONFIG)
+include_directories(${LLD_INCLUDE_DIRS})
 
 # Libraries
 #
@@ -101,22 +118,24 @@ add_library(fancysoft.util.null_stream src/cc/src/fancysoft/util/null_stream.cc)
 add_library(fancysoft.util.utf8 src/cc/src/fancysoft/util/utf8.cc)
 target_link_libraries(fancysoft.util.logger INTERFACE fancysoft.util.null_stream)
 
+llvm_map_components_to_libnames(LLVM_LIBS core target X86)
+
 # The main executable
 #
 
 add_executable(fancysoft.nxc
   src/cc/src/fancysoft/nxc/c/ast.cc
   src/cc/src/fancysoft/nxc/c/block.cc
-  src/cc/src/fancysoft/nxc/c/hlir.cc
   src/cc/src/fancysoft/nxc/c/lexer.cc
   src/cc/src/fancysoft/nxc/c/parser.cc
 
   src/cc/src/fancysoft/nxc/onyx/ast.cc
   src/cc/src/fancysoft/nxc/onyx/file.cc
-  src/cc/src/fancysoft/nxc/onyx/hlir.cc
   src/cc/src/fancysoft/nxc/onyx/lexer.cc
   src/cc/src/fancysoft/nxc/onyx/parser.cc
 
+  src/cc/src/fancysoft/nxc/cli.cc
+  src/cc/src/fancysoft/nxc/mlir.cc
   src/cc/src/fancysoft/nxc/placement.cc
   src/cc/src/fancysoft/nxc/program.cc
 
@@ -128,6 +147,18 @@ target_link_libraries(fancysoft.nxc PUBLIC
   fancysoft.util.logger
   fancysoft.util.null_stream
   fancysoft.util.utf8
+  ${LLVM_LIBS}
+
+  lldCOFF
+  lldCommon
+  lldCore
+  lldDriver
+  lldELF
+  lldMachO
+  lldMachO2
+  lldMinGW
+  lldReaderWriter
+  lldWasm
 )
 
 # Testing

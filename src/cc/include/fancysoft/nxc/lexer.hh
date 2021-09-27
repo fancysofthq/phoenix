@@ -14,7 +14,7 @@
 #include "../util/logger.hh"
 #include "../util/radix.hh"
 
-#include "./panic.hh"
+#include "./exception.hh"
 #include "./unit.hh"
 
 namespace Fancysoft {

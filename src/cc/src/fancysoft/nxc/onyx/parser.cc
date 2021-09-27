@@ -117,13 +117,13 @@ AST::RVal Parser::_parse_rval() {
       continue;
     }
 
-    // A string literal, e.g. `"foo"`.
-    else if (auto literal = _if<Token::StringLiteral>()) {
-      _advance(); // Consume the literal token
-      auto node = std::make_shared<AST::StringLiteral>(literal.value());
-      _debug_parsed(node->node_name());
-      return node;
-    }
+    // // A string literal, e.g. `"foo"`.
+    // else if (auto literal = _if<Token::StringLiteral>()) {
+    //   _advance(); // Consume the literal token
+    //   auto node = std::make_shared<AST::StringLiteral>(literal.value());
+    //   _debug_parsed(node->node_name());
+    //   return node;
+    // }
 
     // A C string literal, e.g. `$"foo"`.
     else if (auto literal = _if<Token::CStringLiteral>()) {

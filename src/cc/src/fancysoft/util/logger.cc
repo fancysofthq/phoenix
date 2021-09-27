@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
@@ -5,14 +6,36 @@
 #include <thread>
 
 #include "fancysoft/util/logger.hh"
+#include "fancysoft/util/variant.hh"
 
 namespace Fancysoft::Util {
+
+const char *Logger::verbosity_to_string(Verbosity verbosity) {
+  switch (verbosity) {
+  case Verbosity::Trace:
+    return "TRACE";
+  case Verbosity::Debug:
+    return "DEBUG";
+  case Verbosity::Info:
+    return "INFO";
+  case Verbosity::Warn:
+    return "WARN";
+  case Verbosity::Error:
+    return "ERROR";
+  case Verbosity::Fatal:
+    return "FATAL";
+  case Verbosity::None:
+    return "NONE";
+  }
+}
 
 Logger::Logger(Verbosity verbosity, std::ostream &output) :
     verbosity(verbosity), _output(output) {}
 
-void Logger::_output_header(Verbosity level, const char *context) {
-  _output << "[";
+void Logger::_output_header(
+    Verbosity level,
+    std::variant<const char *, std::vector<const char *>> context) {
+  _output << '[';
 
   switch (level) {
   case Verbosity::Trace:
@@ -33,6 +56,9 @@ void Logger::_output_header(Verbosity level, const char *context) {
   case Verbosity::Fatal:
     _output << "F";
     break;
+  case Verbosity::None:
+    assert(false);
+    break;
   }
 
   if (enable_thread_id_output) {
@@ -44,10 +70,33 @@ void Logger::_output_header(Verbosity level, const char *context) {
     _output_time();
   }
 
-  _output << "]";
+  _output << ']';
 
-  if (context)
-    _output << "[" << context << "]";
+  std::visit(
+      [this](auto &ctx) {
+        using T = std::decay_t<decltype(ctx)>;
+
+        if constexpr (std::is_same_v<T, const char *>) {
+          if (ctx)
+            _output << '[' << ctx << ']';
+        } else if constexpr (std::is_same_v<T, std::vector<const char *>>) {
+          _output << '[';
+
+          bool first = true;
+          for (auto &c : ctx) {
+            if (first)
+              first = false;
+            else
+              _output << '/';
+
+            _output << c;
+          }
+          _output << ']';
+        } else
+          static_assert(
+              Util::Variant::always_false_v<T>, "non-exhaustive visitor!");
+      },
+      context);
 
   _output << " ";
 }
@@ -66,6 +115,14 @@ void Logger::_output_time() {
 
 #define IMPL_LOG(LEVEL, VERBOSITY)                                             \
   std::ostream &Logger::LEVEL(const char *context) {                           \
+    if (verbosity <= Logger::Verbosity::VERBOSITY) {                           \
+      _output_header(Logger::Verbosity::VERBOSITY, context);                   \
+      return _output;                                                          \
+    } else                                                                     \
+      return _null_stream;                                                     \
+  }                                                                            \
+                                                                               \
+  std::ostream &Logger::LEVEL(const std::vector<const char *> context) {       \
     if (verbosity <= Logger::Verbosity::VERBOSITY) {                           \
       _output_header(Logger::Verbosity::VERBOSITY, context);                   \
       return _output;                                                          \

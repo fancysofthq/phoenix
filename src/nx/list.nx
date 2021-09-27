@@ -1,0 +1,85 @@
+import mem from "./memory.nx"
+import { log } from "./math.nx"
+
+class List<Type T> {
+  let capacity : UInt32
+  get size : UInt32 = 0
+
+  # :hide:
+  # Raw elements pointer.
+  get pointer : T*?
+
+  public static def new(let capacity = 0) {
+    final ptr = if (capacity > 0) {
+      capacity = 2 ** log(2, capacity).floor()
+      mem.allocate<T>(capacity)
+    }
+
+    return self(pointer: ptr, capacity: capacity)
+  }
+
+  public def push(value : T) : self throws mem.AllocationError {
+    if (this.size + 1 >= this.capacity)
+      this.reallocate(this.size + 1)
+    end
+
+    # NOTE: Copy assignment to a pointer
+    # implicitly increments the assignee wRC.
+    unsafe! this.pointer[this.size - 1] = value
+
+    this.size += 1
+    return this
+  }
+  alias << => push
+
+  public def pop() : T  throws IndexError, mem.AllocationError {
+    if (size == 0) then throw IndexError.new(0)
+    final value = unsafe! this.pointer.eject(this.size - 1)
+    this.reallocate(this.size -= 1)
+    return value
+  }
+  # TODO: `list >> x ≣ x.<<(list) || x = list.>>()`
+  alias >> => pop
+
+  # Get the value at *index*.
+  public def get(index : USize) : T throws IndexError {
+    if (index >= size) then throw IndexError(index)
+    return unsafe! this.pointer[index]
+  }
+  alias [] => get
+
+  # Set the *value* at *index*, returning the old value.
+  public def set(index : USize, value : T) : Void throws IndexError  {
+    if (index >= size) then throw IndexError(index)
+    return unsafe! this.pointer.swap(index, new)
+  }
+  alias []= => set
+
+  def reallocate(desired_capacity) throws mem.AllocationError  {
+    final new_capacity = 2 ** log(2, desired_capacity).floor()
+
+    if (new_capacity != this.capacity) {
+      this.pointer = if (new_capacity > 0)
+        mem.reallocate(this.pointer, new_capacity)
+      else
+        mem.free(this.pointer)
+      end
+
+      this.capacity = new_capacity
+    }
+  }
+
+  reimpl @rcmark(root) : Bool {
+    return this.size > 0 && (
+      let i = this.size
+      convey (while (i > 0)
+        if !el.@rcmark(root) then break false
+        i -= 1
+      end) || true)
+  }
+
+  reimpl unsafe @finalize() {
+    this.each((e) -> e.@finalize())
+    mem.free(this.pointer)
+  }
+}

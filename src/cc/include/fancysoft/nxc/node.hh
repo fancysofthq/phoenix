@@ -20,6 +20,9 @@ struct Node {
     inspect(ss);
     return ss.str();
   }
+
+  /// Get some short node representation to aid tracing, e.g. `<CCall $puts>`.
+  virtual std::string trace() const = 0;
 };
 
 } // namespace NXC

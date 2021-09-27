@@ -4,7 +4,6 @@
 #include <fstream>
 #include <stdexcept>
 
-#include "./module.hh"
 #include "./unit.hh"
 
 namespace Fancysoft {

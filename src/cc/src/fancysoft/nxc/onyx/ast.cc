@@ -30,16 +30,16 @@ void AST::ExternDirective::inspect(
   this->block->ast()->inspect(stream, indent + 1);
 }
 
-void AST::StringLiteral::inspect(
-    std::ostream &stream, unsigned short indent) const {
-  fmt::print(
-      stream,
-      "{0}{1}\n{2}Token: {3}\n",
-      node_prefix(indent),
-      node_name(),
-      attribute_prefix(indent),
-      this->token.Token::inspect());
-}
+// void AST::StringLiteral::inspect(
+//     std::ostream &stream, unsigned short indent) const {
+//   fmt::print(
+//       stream,
+//       "{0}{1}\n{2}Token: {3}\n",
+//       node_prefix(indent),
+//       node_name(),
+//       attribute_prefix(indent),
+//       this->token.Token::inspect());
+// }
 
 void AST::CStringLiteral::inspect(
     std::ostream &stream, unsigned short indent) const {

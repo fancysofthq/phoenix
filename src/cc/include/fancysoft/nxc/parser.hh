@@ -11,8 +11,8 @@
 #include "../util/logger.hh"
 #include "../util/variant.hh"
 
+#include "./exception.hh"
 #include "./lexer.hh"
-#include "./panic.hh"
 #include "./token.hh"
 
 namespace Fancysoft {

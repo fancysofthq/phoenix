@@ -26,16 +26,15 @@ void Placement::debug(std::ostream &stream) const {
       fmt::print(
           stream,
           "In C block at {}:{}\n",
-          element.location.start.row,
-          element.location.start.col);
-    } else if (
-        Onyx::File *file = dynamic_cast<Onyx::File *>(unit.get())) {
+          element.location.start.row + 1,
+          element.location.start.col + 1);
+    } else if (Onyx::File *file = dynamic_cast<Onyx::File *>(unit.get())) {
       fmt::print(
           stream,
-          "In {}:{}:{}\n",
+          "At {}:{}:{}\n",
           file->path.string(),
-          element.location.start.row,
-          element.location.start.col);
+          element.location.start.row + 1,
+          element.location.start.col + 1);
     }
   }
 }

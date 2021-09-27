@@ -1,0 +1,18 @@
+primitive Pointer<Type T> {
+  # Get a value copy at *index*, decrementing the value's wRC.
+  unsafe def eject(index: offset : USize) : T {
+    final value = this[offset]
+    @deref(value) # Decrement the wRC of the ejected value
+    return value
+  }
+
+  # Get a value copy at *index*.
+  @[Native]
+  unsafe decl get(index : USize) : T
+  alias [] => get
+
+  # Set the *value* at *index*, incrementing the value's wRC.
+  @[Native]
+  unsafe decl set(index : USize, value : T) : void
+  alias []= => set
+}

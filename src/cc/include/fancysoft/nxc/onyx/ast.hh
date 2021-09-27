@@ -45,7 +45,7 @@ struct AST : NXC::Node {
                                    // std::shared_ptr<NamespaceDecl>
                                    >;
 
-  struct StringLiteral;
+  // struct StringLiteral;
   // struct CharLiteral;
   // struct NumberLiteral;
   // struct ArrayLiteral;
@@ -58,7 +58,7 @@ struct AST : NXC::Node {
   struct CStringLiteral;
 
   using Literal = std::variant<
-      std::shared_ptr<StringLiteral>,
+      // std::shared_ptr<StringLiteral>,
       std::shared_ptr<CStringLiteral>
       // std::shared_ptr<CharLiteral>,
       // std::shared_ptr<NumberLiteral>,
@@ -124,6 +124,7 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<ExternDirective>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+    std::string trace() const override { return node_name(); }
   };
 
   // struct Block {
@@ -134,6 +135,7 @@ struct AST : NXC::Node {
   struct TypeExpr : NXC::Node {
     const char *node_name() const override { return "<TypeExpr>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+    std::string trace() const override { return node_name(); }
   };
 
   // /// A variable declaration node.
@@ -178,15 +180,19 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<VarDef>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+    std::string trace() const override {
+      return "<VarDef " + id_token.id + ">";
+    }
   };
 
-  /// A string literal node.
-  struct StringLiteral : NXC::Node {
-    const Token::StringLiteral token;
-    StringLiteral(Token::StringLiteral token) : token(token) {}
-    const char *node_name() const override { return "<StringLiteral>"; }
-    void inspect(std::ostream &, unsigned short indent = 0) const override;
-  };
+  // /// A string literal node.
+  // struct StringLiteral : NXC::Node {
+  //   const Token::StringLiteral token;
+  //   StringLiteral(Token::StringLiteral token) : token(token) {}
+  //   const char *node_name() const override { return "<StringLiteral>"; }
+  //   void inspect(std::ostream &, unsigned short indent = 0) const override;
+  // };
 
   /// A C string literal node.
   struct CStringLiteral : NXC::Node {
@@ -194,6 +200,10 @@ struct AST : NXC::Node {
     CStringLiteral(Token::CStringLiteral token) : token(token) {}
     const char *node_name() const override { return "<CStringLiteral>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+    std::string trace() const override {
+      return "<CStringLiteral \"" + token.string + "\">";
+    };
   };
 
   /// An Onyx identifier node.
@@ -209,6 +219,7 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<Id>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+    std::string trace() const override { return "<Id `" + token.id + "`>"; }
   };
 
   /// An C identifier node, e.g. `$void`.
@@ -219,6 +230,7 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<CId>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+    std::string trace() const override { return "<CId $`" + token.id + "`>"; }
   };
 
   /// An Onyx call node.
@@ -232,6 +244,7 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<Call>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+    std::string trace() const override { return "<Call " + callee.id + "()>"; }
   };
 
   /// A C call node, e.g. `$exit()`,
@@ -244,6 +257,10 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<CCall>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+    std::string trace() const override {
+      return "<CCall $" + callee.id + "()>";
+    }
   };
 
   /// An explicit safety statement node.
@@ -270,6 +287,10 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<ExplSafety>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+    std::string trace() const override {
+      return "<ExplSafety " + safety_name(safety()) + ">";
+    }
   };
 
   /// An unary operation node.
@@ -282,6 +303,7 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<UnOp>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+    std::string trace() const override { return node_name(); }
   };
 
   // /// A binary operation node.
@@ -304,6 +326,7 @@ struct AST : NXC::Node {
 
   const char *node_name() const override { return "<AST>"; }
   void inspect(std::ostream &, unsigned short indent = 0) const override;
+  std::string trace() const override { return node_name(); }
 
 private:
   std::vector<TopLevelNode> _children;

@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "../../util/variant.hh"
+#include "../exception.hh"
 #include "../node.hh"
-#include "../panic.hh"
 #include "./token.hh"
 
 namespace Fancysoft {
@@ -36,6 +36,11 @@ struct AST : NXC::Node {
     int pointer_depth() const { return pointer_tokens.size(); }
     const char *node_name() const override { return "<C/TypeRef>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+    std::string trace() const override {
+      return "<C/TypeRef " + id_token.id + std::string(pointer_depth(), '*') +
+             ">";
+    }
   };
 
   /// A C function prototype declaration.
@@ -51,6 +56,12 @@ struct AST : NXC::Node {
 
       const char *node_name() const override { return "<C/ArgDecl>"; }
       void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+      std::string trace() const override {
+        return "<C/ArgDecl " + type_node->id_token.id +
+               std::string(type_node->pointer_depth(), '*') +
+               (id_token.has_value() ? (" " + id_token.value().id) : "") + ">";
+      }
     };
 
     std::shared_ptr<TypeRef> return_type_node;
@@ -67,6 +78,10 @@ struct AST : NXC::Node {
 
     const char *node_name() const override { return "<C/FuncDecl>"; }
     void inspect(std::ostream &, unsigned short indent = 0) const override;
+
+    std::string trace() const override {
+      return "<C/FuncDecl " + id_token.id + ">";
+    }
   };
 
   /// Append a child node.
@@ -77,6 +92,7 @@ struct AST : NXC::Node {
 
   const char *node_name() const override { return "<C/AST>"; }
   void inspect(std::ostream &, unsigned short indent = 0) const override;
+  std::string trace() const override { return node_name(); }
 
 private:
   std::vector<TopLevelNode> _children;
