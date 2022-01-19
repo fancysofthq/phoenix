@@ -2,8 +2,9 @@
 
 #include <memory>
 
-#include "../block.hh"
-#include "./ast.hh"
+#include "../logger.hh"
+#include "../unit.hh"
+#include "./cst.hh"
 
 namespace Fancysoft {
 namespace NXC {
@@ -12,19 +13,22 @@ struct Program;
 
 namespace C {
 
-/// A block of C code located in an Onyx source file.
+/// A block of freestanding C code usually located in an Onyx source file.
 struct Block : NXC::Block, std::enable_shared_from_this<Block> {
-  Block(Placement placement, std::istream &stream) :
-      NXC::Block(placement), _stream(stream) {}
+  Block(
+      Placement placement,
+      std::istream &stream,
+      std::shared_ptr<Logger> logger) :
+      NXC::Block(placement), _stream(stream), _logger(logger) {}
 
   std::istream &source_stream() override { return _stream; }
   Position parse() override;
-
-  const AST *ast() const { return _ast.get(); }
+  const CST *cst() const { return _cst.get(); }
 
 private:
+  std::shared_ptr<Logger> _logger;
   std::istream &_stream;
-  std::unique_ptr<const AST> _ast;
+  std::unique_ptr<const CST> _cst;
 };
 
 } // namespace C

@@ -1,0 +1,4 @@
+export default trait Beginful<T> {
+  decl shift() : T
+  decl unshift(value : T) : void
+}

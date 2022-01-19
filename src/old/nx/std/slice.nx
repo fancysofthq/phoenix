@@ -1,0 +1,21 @@
+import Slice from "../spec/std/slice.nxh"
+import Indexable from "./indexable.nx"
+import { SSize } from "./int.nx"
+
+# Unsafe `[]` access for any slice storage.
+forall T unsafe builtin impl Slice<T, Readable: true>~Indexable:[](
+  index : SSize) : T throws Indexable::IndexError<SSize>
+
+# Fragile `[]` access overload for local and static slice storages.
+forall [T, S ~ "local" || "static"]
+fragile builtin impl Slice<T, Storage: S, Readable: true>~Indexable:[](
+  index : SSize) : T throws Indexable::IndexError<SSize>
+
+# Unsafe `[]=` access for any slice storage.
+forall T unsafe builtin impl Slice<T, Writeable: true>~Indexable:[]=(
+  index : SSize, value : T) : T throws Indexable::IndexError<SSize>
+
+# Fragile `[]=` access overload for local and static slice storages.
+forall [T, S ~ "local" || "static"]
+fragile builtin impl Slice<T, Storage: S, Writeable: true>~Indexable:[]=(
+  index : SSize, value : T) : T throws Indexable::IndexError<SSize>

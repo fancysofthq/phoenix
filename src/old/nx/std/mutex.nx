@@ -1,0 +1,39 @@
+extern #include <threads.h>
+
+export class AlreadyLocked : Exception
+  static def new() -> self("Mutex already locked")
+end
+
+export class NotLockedYet : Exception
+  static def new() -> self("Mutex not locked yet")
+end
+
+# A freestanding mutex synced with the global scheduler.
+@[NoClassMutex]
+export default class Mutex
+  private final mutex := unsafe! uninitialized $mtx_t
+
+  static def new()
+    final this = self()
+    unsafe! $mtx_init(&this.mutex, $mtx_timed)
+    return this
+  end
+
+  threadsafe def lock(block : () =>, timeout : Time? = nil) throws AlreadyLocked
+    Scheduler.lock(this, block, timeout)
+  end
+
+  # Zero timeout returns immediately if failed to lock.
+  fragile def lock(timeout : Time? = nil) throws AlreadyLocked
+    Scheduler.lock(this, timeout)
+  end
+
+  fragile def unlock() throws NotLockedYet
+    Scheduler.unlock(this)
+  end
+
+  # TODO: What if it's currently locked?
+  reimpl unsafe finalize()
+    $mtx_destroy(&this.mutex)
+  end
+end

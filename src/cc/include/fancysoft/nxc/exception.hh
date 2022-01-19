@@ -1,5 +1,6 @@
 #pragma once
 
+#include <assert.h>
 #include <optional>
 #include <ostream>
 #include <stdexcept>
@@ -14,10 +15,10 @@ struct Panic : std::runtime_error {
   /// A panic may contain multiple notes to aid in resolving the problem.
   struct Note {
     /// The note message.
-    const std::string message;
+    std::string message;
 
     /// The note placement.
-    const std::optional<Placement> placement;
+    std::optional<Placement> placement;
 
     Note(
         std::string message,
@@ -26,10 +27,10 @@ struct Panic : std::runtime_error {
   };
 
   /// A panic optionally points to the origin source.
-  const std::optional<Placement> placement;
+  std::optional<Placement> placement;
 
   /// The list of optional panic notes.
-  const std::vector<Note> notes;
+  std::vector<Note> notes;
 
   Panic(
       std::string message,
@@ -67,7 +68,9 @@ struct Unimplemented : std::runtime_error {
 };
 
 // TODO: Make it cross-platform.
-#define __FNXC__UNREACHEABLE __builtin_unreachable();
+#define __FNX__UNREACHEABLE(message)                                           \
+  assert(false && message);                                                    \
+  __builtin_unreachable();
 
 } // namespace NXC
 } // namespace Fancysoft

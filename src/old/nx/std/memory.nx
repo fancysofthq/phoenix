@@ -1,0 +1,28 @@
+extern #include <stdlib.h>
+
+# Allocate space enough to store *amount* of objects of type *T*.
+# NOTE: Could omit `<T>` here, done for readability.
+export threadsafe def allocate<T>(amount : USize) : T*
+  final ptr = unsafe! $malloc(@sizeof<T>() * amount) as T*
+  if (ptr.null?) throw Error()
+  return ptr
+end
+
+# Rellocate previously allocated space to store *new_amount* of objects of type *T*.
+#
+# NOTE: The call is really threadsafe, but the stored objects
+# must be dereferenced manually, thus the unsafety modifier.
+export unsafe def reallocate(previous_pointer : T*, new_amount : USize) : T*
+  threadsafe!
+    if (new_amount == 0) throw Error()
+    final ptr = unsafe! $realloc(previous_pointer as $void*, @sizeof<T>() * size)
+    if (ptr.null?) throw Error()
+    return ptr
+  end
+end
+
+# NOTE: The call is really threadsafe, but the stored objects
+# must be dereferenced manually, thus the unsafety modifier.
+export unsafe def free(pointer : T*) : void
+  $free(pointer)
+end

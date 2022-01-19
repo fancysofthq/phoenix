@@ -1,0 +1,19 @@
+export default enum MemoryOrdering
+  # Unordered.
+  enumeral Unord
+
+  # Monotonic ordering.
+  enumeral Mono
+
+  # Acquire ordering.
+  enumeral Acq
+
+  # Release ordering.
+  enumeral Rel
+
+  # Acquire-release ordering.
+  enumeral Acqrel
+
+  # Sequentially consistent ordering.
+  enumeral Seqcst
+end

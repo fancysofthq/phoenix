@@ -1,101 +1,92 @@
 #pragma once
 
-#include <map>
-#include <memory>
-#include <optional>
-#include <ranges>
-#include <set>
-#include <variant>
-#include <vector>
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
 
-#include "../../util/variant.hh"
-#include "../exception.hh"
-#include "../node.hh"
-#include "./token.hh"
+#include "../logger.hh"
+#include "./block.hh"
+#include "./cst.hh"
 
 namespace Fancysoft {
 namespace NXC {
 namespace C {
 
-/// A C Abstract Syntax Tree.
-struct AST : NXC::Node {
-  struct TypeRef;
-  struct FuncDecl;
-
-  using TopLevelNode = std::variant<std::shared_ptr<FuncDecl>>;
-
-  /// A type reference, e.g. `int` or `const unsigned int **`.
-  struct TypeRef : NXC::Node {
-    // const Token::Keyword modifier; // TODO:
-    const Token::Id id_token;
-    const std::vector<Token::Op> pointer_tokens;
-
-    TypeRef(Token::Id id_token, std::vector<Token::Op> pointer_tokens) :
-        id_token(id_token), pointer_tokens(pointer_tokens) {}
-
-    int pointer_depth() const { return pointer_tokens.size(); }
-    const char *node_name() const override { return "<C/TypeRef>"; }
-    void inspect(std::ostream &, unsigned short indent = 0) const override;
-
-    std::string trace() const override {
-      return "<C/TypeRef " + id_token.id + std::string(pointer_depth(), '*') +
-             ">";
-    }
+struct AST {
+  enum BuiltInType {
+    Void,
+    Char,
   };
 
-  /// A C function prototype declaration.
-  struct FuncDecl : NXC::Node {
-    struct ArgDecl : NXC::Node {
-      std::shared_ptr<TypeRef> type_node;
-      const std::optional<Token::Id> id_token;
+  struct TypeRef {
+    const std::shared_ptr<const CST::TypeRef> cst;
 
-      ArgDecl(
-          std::shared_ptr<TypeRef> type_node,
-          std::optional<Token::Id> id_token) :
-          type_node(type_node), id_token(id_token) {}
+    BuiltInType type;
+    unsigned pointer_depth;
 
-      const char *node_name() const override { return "<C/ArgDecl>"; }
-      void inspect(std::ostream &, unsigned short indent = 0) const override;
+    TypeRef(
+        std::shared_ptr<const CST::TypeRef> cst,
+        BuiltInType type,
+        unsigned pointer_depth) :
+        cst(cst), type(type), pointer_depth(pointer_depth) {}
 
-      std::string trace() const override {
-        return "<C/ArgDecl " + type_node->id_token.id +
-               std::string(type_node->pointer_depth(), '*') +
-               (id_token.has_value() ? (" " + id_token.value().id) : "") + ">";
-      }
+    llvm::Type *codegen(llvm::Module *, Logger *) const;
+  };
+
+  struct FuncDecl {
+    struct Arg {
+      const std::shared_ptr<const CST::FuncDecl::Arg> cst;
+
+      TypeRef type;
+      std::optional<std::string> id;
+
+      Arg(std::shared_ptr<const CST::FuncDecl::Arg> cst,
+          TypeRef type,
+          std::optional<std::string> id) :
+          cst(cst), type(type), id(id) {}
     };
 
-    std::shared_ptr<TypeRef> return_type_node;
-    const Token::Id id_token;
-    std::vector<std::shared_ptr<ArgDecl>> arg_nodes;
+    struct VArg {
+      const std::shared_ptr<const CST::FuncDecl::VArg> cst;
+      VArg(std::shared_ptr<const CST::FuncDecl::VArg> cst) : cst(cst) {}
+    };
+
+    const std::shared_ptr<const CST::FuncDecl> cst;
+
+    std::string id;
+    TypeRef return_type;
+    std::vector<Arg> args;
+    std::optional<VArg> varg;
 
     FuncDecl(
-        std::shared_ptr<TypeRef> return_type_node,
-        Token::Id id_token,
-        std::vector<std::shared_ptr<ArgDecl>> arg_nodes) :
-        return_type_node(return_type_node),
-        id_token(id_token),
-        arg_nodes(arg_nodes) {}
+        std::shared_ptr<const CST::FuncDecl> cst,
+        std::string id,
+        TypeRef return_type,
+        std::vector<Arg> args,
+        std::optional<VArg> varg) :
+        cst(cst), id(id), return_type(return_type), args(args), varg(varg) {}
 
-    const char *node_name() const override { return "<C/FuncDecl>"; }
-    void inspect(std::ostream &, unsigned short indent = 0) const override;
-
-    std::string trace() const override {
-      return "<C/FuncDecl " + id_token.id + ">";
-    }
+    llvm::Function *codegen(llvm::Module *, Logger *) const;
   };
 
-  /// Append a child node.
-  void add_child(TopLevelNode node) { _children.push_back(node); };
+  AST(std::shared_ptr<Logger> logger) : _logger(logger) {}
 
-  /// Return a constant reference to the children nodes vector.
-  const std::vector<TopLevelNode> &chidren() const { return _children; }
+  /// Compile a C CST into this AST.
+  void compile(const CST *);
 
-  const char *node_name() const override { return "<C/AST>"; }
-  void inspect(std::ostream &, unsigned short indent = 0) const override;
-  std::string trace() const override { return node_name(); }
+  std::shared_ptr<FuncDecl> search_func_decl(std::string id);
+  void codegen(llvm::Module *module) const;
 
 private:
-  std::vector<TopLevelNode> _children;
+  static std::optional<BuiltInType> _search_c_builtin_type(std::string id);
+
+  std::shared_ptr<Logger> _logger;
+  std::unordered_map<std::string, std::shared_ptr<FuncDecl>> _func_decls;
+
+  void _compile(std::shared_ptr<const CST::FuncDecl>);
+  TypeRef _compile(std::shared_ptr<const CST::TypeRef>);
+  FuncDecl::Arg _compile(std::shared_ptr<const CST::FuncDecl::Arg>);
+  FuncDecl::VArg _compile(std::shared_ptr<const CST::FuncDecl::VArg>);
 };
 
 } // namespace C

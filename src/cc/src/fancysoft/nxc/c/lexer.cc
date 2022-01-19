@@ -19,7 +19,7 @@ Util::Coro::Generator<Token::Any> Lexer::lex() noexcept {
         while (_is_space())
           _advance();
 
-        co_yield _punct(Token::Punct::HSpace);
+        co_yield _punct(Token::Punct::Space);
         continue;
       }
 
@@ -57,22 +57,40 @@ Util::Coro::Generator<Token::Any> Lexer::lex() noexcept {
         switch (_code_point) {
         case '(':
           co_yield _punct(Token::Punct::OpenParen);
-          break;
+          _advance();
+          continue;
         case ')':
           co_yield _punct(Token::Punct::CloseParen);
-          break;
+          _advance();
+          continue;
         case ';':
           co_yield _punct(Token::Punct::Semi);
-          break;
+          _advance();
+          continue;
         case ',':
           co_yield _punct(Token::Punct::Comma);
-          break;
-        default:
-          throw _unexpected();
+          _advance();
+          continue;
+        case '.': {
+          size_t count = 0;
+
+          while (_is('.')) {
+            count += 1;
+            _advance();
+          }
+
+          switch (count) {
+          case 1:
+            co_yield _punct(Token::Punct::Access);
+            continue;
+          case 3:
+            co_yield _punct(Token::Punct::Varg);
+            continue;
+          }
+        }
         }
 
-        _advance();
-        continue;
+        throw _unexpected();
       }
     } while (!_is_eof());
   } catch (std::exception &e) {

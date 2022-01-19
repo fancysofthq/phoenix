@@ -1,0 +1,102 @@
+# `,` ≡ `\n`. `;` required.
+
+function `Int32`:`less`, `Bool`;
+  arg %`this`, `Int32`;
+  arg %`another`, `Int32`;
+body;
+  var %0, `Bool`
+  asm;
+    template "..."; # LLIR
+    in
+      "r", %`this`
+      "r", %`another`;
+    out
+      "r", %0
+  endasm;
+
+function `fib`, `Int32`;
+  arg %`n`, `Int32`;
+body;
+  var %0, `Int32`, 1;
+
+  # n <= 1
+  var `Bool`, %1;
+  rcall
+    %1
+    `Int32`:`less`
+    %`n`, %0;
+
+  switch %1,
+    true, :0
+    false, :1;
+
+  label :0;
+    return %`n`;
+
+  label :1;
+    # n - 1
+    var `Int32`, %3;
+    rcall
+      %3
+      `Int32`:`sub`
+      %n, 1;
+
+    # fib(n - 1)
+    var `Int32`, %4;
+    rcall
+      %4
+      `fib`
+      %3;
+
+    # n - 2
+    var `Int32`, %5;
+    rcall
+      %5
+      `Int32`:`sub`
+      %n, 2;
+
+    # fib(n - 2)
+    var `Int32`, %6;
+    rcall
+      %6
+      `fib`
+      %5;
+
+    # fib(n - 1) + fib(n - 2)
+    var `Int32`, %7;
+    rcall
+      %5
+      `Int32`:`add`
+      %4, %6;
+
+    return %7;
+endbody;
+
+var %`n`, `Int32`, 10
+
+# fib(n)
+var %8, `Int32`
+rcall
+  %8
+  `fib`
+  %`n`
+
+# fib(n) == 42
+var %9, `Bool`
+rcall
+  %9
+  `Int32`:`eq?`
+  %8, 42
+
+# !(fib(n) == 42)
+var %10, `Bool`
+rcall
+  %9
+  `Bool`:`not`
+  %10
+
+cast %11, %10, $`int`
+
+call
+  $`exit`
+  %10

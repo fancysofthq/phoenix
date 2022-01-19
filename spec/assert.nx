@@ -1,0 +1,11 @@
+export class AssertionFailure : Exception {
+  static self(message : String = "Assertion failure") -> self({
+    Exception(message)
+  })
+}
+
+export default assert(cond, message : String? = nil) {
+  if (!cond) {
+    throw AssertionFailure(message)
+  }
+}

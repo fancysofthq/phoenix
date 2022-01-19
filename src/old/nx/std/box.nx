@@ -1,0 +1,4 @@
+export default class Box<T>
+  let value : T
+  public static def new<T>(value : T) -> self(value)
+end

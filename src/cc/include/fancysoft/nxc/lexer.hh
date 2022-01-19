@@ -7,14 +7,13 @@
 #include <optional>
 #include <set>
 
+#include <fancysoft/util/coro.hh>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include "../util/coro.hh"
-#include "../util/logger.hh"
-#include "../util/radix.hh"
-
 #include "./exception.hh"
+#include "./logger.hh"
+#include "./radix.hh"
 #include "./unit.hh"
 
 namespace Fancysoft {
@@ -25,7 +24,8 @@ template <typename Token> struct Lexer {
   /// The unit being lexed.
   const std::shared_ptr<Unit> unit;
 
-  Lexer(std::shared_ptr<Unit> unit) : unit(unit) {}
+  Lexer(std::shared_ptr<Unit> unit, std::shared_ptr<Logger> logger) :
+      unit(unit), _logger(logger) {}
 
   /// Begin the lexing, creating a resumable coroutine.
   virtual Util::Coro::Generator<Token> lex() = 0;
@@ -42,8 +42,11 @@ template <typename Token> struct Lexer {
     return _cursor;
   }
 
+  /// Check if the lexer has thrown a panic.
+  std::optional<Panic> panic() { return _panic; }
+
   /// Check if the lexer has thrown an exception.
-  inline std::optional<std::exception> exception() { return _exception; }
+  std::optional<std::exception> exception() { return _exception; }
 
   void _unread() { unit->source_stream().unget(); }
 
@@ -62,10 +65,13 @@ private:
   }
 
 protected:
-  /// This lexer's name for debugging.
-  virtual const char *_debug_name() const = 0;
+  /// A logger instance.
+  std::shared_ptr<Logger> _logger;
 
-  /// The lexer's exception thrown, if any.
+  /// The lexer's panic thrown, if any.
+  std::optional<Panic> _panic;
+
+  /// The lexer's unhandled exception thrown, if any.
   std::optional<std::exception> _exception;
 
   /// The latest yielded cursor position.
@@ -101,7 +107,7 @@ protected:
     if (unit->source_stream().good()) {
       _code_point = unit->source_stream().get();
 
-      auto &log = Util::logger.trace(_debug_name());
+      auto &log = _logger->strace();
       log << "Read `";
       _debug_codepoint(log);
       fmt::print(log, "` at {}:{}\n", _cursor.row, _cursor.col);
@@ -115,7 +121,7 @@ protected:
 
       return old;
     } else if (_is_eof()) {
-      throw Panic("Unexpected EOF", _placement());
+      throw Panic("Unexpected EOF in lexer", _placement());
     } else {
       throw Panic("Error reading from unit", _placement());
     }
@@ -132,10 +138,10 @@ protected:
         fmt::format("Expected {}", fmt::join(expected, ", ")), _placement());
   }
 
-  /// Does the latest codepoint equal to *cmp*?
+  /// Is the latest codepoint equal to *cmp*?
   inline bool _is(char cmp) const { return _code_point == cmp; }
 
-  /// Does the latest codepoint equal to *cmp*?
+  /// Is the latest codepoint equal to *cmp*?
   inline bool _is(std::set<char> cmp) const {
     return cmp.contains(_code_point);
   }
@@ -161,15 +167,15 @@ protected:
   }
 
   /// Match an ASCII digit in given radix, case insensitive.
-  inline bool _is_num(Util::Radix radix) const {
+  inline bool _is_num(Radix radix) const {
     switch (radix) {
-    case Util::Radix::Binary:
+    case Radix::Binary:
       return _code_point == '0' || _code_point == '1';
-    case Util::Radix::Octal:
+    case Radix::Octal:
       return _code_point >= '0' && _code_point <= '7';
-    case Util::Radix::Decimal:
+    case Radix::Decimal:
       return _code_point >= '0' && _code_point <= '9';
-    case Util::Radix::Hexadecimal:
+    case Radix::Hexadecimal:
       return (_code_point >= '0' && _code_point <= '9') ||
              (_code_point >= 'a' && _code_point <= 'f') ||
              (_code_point >= 'A' && _code_point <= 'F');
@@ -177,18 +183,16 @@ protected:
   }
 
   /// Match @c /0-1/ .
-  inline bool _is_binary() const { return _is_num(Util::Radix::Binary); };
+  inline bool _is_binary() const { return _is_num(Radix::Binary); };
 
   /// Match @c /0-7/ .
-  inline bool _is_octal() const { return _is_num(Util::Radix::Octal); };
+  inline bool _is_octal() const { return _is_num(Radix::Octal); };
 
   /// Match @c /0-9/ .
-  inline bool _is_decimal() const { return _is_num(Util::Radix::Decimal); };
+  inline bool _is_decimal() const { return _is_num(Radix::Decimal); };
 
   /// Match @c /[0-9a-fA-F]/ .
-  inline bool _is_hexadecimal() const {
-    return _is_num(Util::Radix::Hexadecimal);
-  }
+  inline bool _is_hexadecimal() const { return _is_num(Radix::Hexadecimal); }
 
   /// Match @c /a-z/ .
   inline bool _is_latin_lowercase() const {

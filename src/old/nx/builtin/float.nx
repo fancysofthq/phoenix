@@ -1,0 +1,14 @@
+import { BuiltinHidden } from "../vendor/annotation.nx"
+import Real from "./real.nx"
+import Bool from "./bool.nx"
+
+@[BuiltinHidden]
+export builtin Float<Bitsize: Z : \uint> : Real
+  forall <T : Float | Int> builtin impl &Real.add(other : T) : self
+  forall <T : Float | Int> builtin impl &Real.lte?(other : T) : Bool
+end
+
+export alias Float16 => Float<16>
+export alias Float32 => Float<32>
+export alias Float64 => Float<64>
+export alias Float128 => Float<128>

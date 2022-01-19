@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 
 #include "./unit.hh"
@@ -33,6 +34,16 @@ struct File : Unit {
 
   virtual Position parse() override = 0;
   std::istream &source_stream() override { return *&_file_stream; }
+  std::string get_line(int n);
+
+  /// TODO:
+  /// Get a file view peek at specific *line* and *column*.
+  /// Also returns the resulting offset for the column.
+  std::tuple<std::string, unsigned> get_view(
+      unsigned line,   // Begins from 0
+      unsigned column, // Begins from 0
+      unsigned view_size = 69,
+      unsigned max_left_padding = 20);
 
 protected:
   std::ifstream _file_stream;

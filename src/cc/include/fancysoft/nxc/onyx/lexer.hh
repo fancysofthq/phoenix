@@ -11,44 +11,14 @@ struct Lexer : NXC::Lexer<Token::Any> {
   using NXC::Lexer<Token::Any>::Lexer;
   Util::Coro::Generator<Token::Any> lex() noexcept override;
 
-protected:
-  inline const char *_debug_name() const override { return "Lexer"; }
-
 private:
-  inline bool _is_op() const {
-    switch (_code_point) {
-    case '=':
-    case '~':
-    case '-':
-    case '+':
-    case '!':
-    case '?':
-    case '&':
-    case '*':
-    case '%':
-    case '^':
-    case ':':
-    case '/':
-      return true;
-    default:
-      return false;
-    }
-  }
-
-  inline bool _is_punct() const {
-    switch (_code_point) {
-    case ',':
-    case '(':
-    case ')':
-      return true;
-    default:
-      return false;
-    }
-  }
-
+  // inline bool _is_op() const { return Token::Op::is(_code_point); }
+  // inline bool _is_punct() const {
+  //   return Token::Punct::char_to_kind(_code_point).has_value();
+  // }
   auto _punct(Token::Punct::Kind kind) { return _token<Token::Punct>(kind); }
-
-  std::string _lex_string_literal_content(char terminator);
+  std::string _lex_string_content(char terminator);
+  long long _lex_int();
 };
 
 } // namespace Onyx

@@ -12,9 +12,6 @@ struct Lexer : NXC::Lexer<Token::Any> {
   using NXC::Lexer<Token::Any>::Lexer;
   Util::Coro::Generator<Token::Any> lex() noexcept override;
 
-protected:
-  inline const char *_debug_name() const override { return "C/Lexer"; }
-
 private:
   /// Check if the code point could be a part of an operator token. Note that an
   /// operator may consist of multiple code points (e.g. `+=`).

@@ -1,0 +1,6 @@
+export import Indexable from "../spec/indexable.nxh"
+
+forall T impl Indexable::IndexError<T>:IndexError(index : T) {
+  this.index = index
+  this~Exception.message = "Index %{} is out of bounds" % index.to<String>()
+}

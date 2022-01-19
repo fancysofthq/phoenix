@@ -1,0 +1,12 @@
+import { USize } from "./int.nx"
+
+# Unlike `Array`, a `Pointer` is not sized.
+export default builtin def Pointer<T>
+  # Read value at *index*, returning a copy of `T`.
+  builtin unsafe def read(index : USize) : T
+  alias [] => read
+
+  # Write *value* at *index*.
+  builtin unsafe def write(index : USize, value : T) : void
+  alias []= => write
+end

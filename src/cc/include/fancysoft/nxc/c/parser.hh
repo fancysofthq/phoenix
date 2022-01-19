@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../parser.hh"
-#include "./ast.hh"
+#include "./cst.hh"
 #include "./lexer.hh"
 
 namespace Fancysoft {
@@ -10,14 +10,11 @@ namespace C {
 
 struct Parser : NXC::Parser<Lexer, Token::Any> {
   using NXC::Parser<Lexer, Token::Any>::Parser;
-  std::unique_ptr<AST> parse(bool single_expression);
-
-protected:
-  inline const char *_debug_name() const override { return "C/Parser"; }
+  std::unique_ptr<CST> parse(bool single_expression);
 
 private:
-  std::shared_ptr<AST::TypeRef> _parse_type_ref();
-  std::shared_ptr<AST::FuncDecl::ArgDecl> _parse_arg_decl();
+  std::shared_ptr<CST::TypeRef> _parse_type_ref();
+  std::shared_ptr<CST::FuncDecl::Arg> _parse_func_decl_arg();
 
   bool _is_punct(Token::Punct::Kind kind) const {
     if (auto punct = _if<Token::Punct>())
@@ -26,7 +23,7 @@ private:
       return false;
   }
 
-  bool _is_space() const { return _is_punct(Token::Punct::HSpace); }
+  bool _is_space() const { return _is_punct(Token::Punct::Space); }
   bool _is_comma() const { return _is_punct(Token::Punct::Comma); }
   bool _is_close_paren() const { return _is_punct(Token::Punct::CloseParen); }
 
@@ -36,7 +33,7 @@ private:
         return punct.value();
     }
 
-    throw _unexpected(Token::Punct::kind_to_expected(kind));
+    throw _expected(Token::Punct::kind_to_expected(kind));
   }
 
   Token::Punct _as_open_paren() const {
@@ -47,7 +44,7 @@ private:
 
   bool _is_op(const char *compared) const {
     if (auto op = _if<Token::Op>()) {
-      return op->op == compared;
+      return op->value == compared;
     }
 
     return false;

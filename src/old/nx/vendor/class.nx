@@ -1,0 +1,102 @@
+extern {
+  #include <threads.h>
+
+  typedef struct fnx_class_header {
+    // The class mutex.
+    mtx_t mtx;
+
+    // Strong reference counter (from variables).
+    size_t strongrc;
+
+    // Weak reference counter (from other objects).
+    size_t weakrc;
+
+    // The real class instance type.
+    uint32_t type;
+  }
+}
+
+# Modify reference counter of a class *instance* *by* some value.
+export unsafe def addrc<T : Class>(instance : T, by : USize) -> void {
+  $mtx_lock(@classhead(instance)->mtx)
+  *@classhead(instance).rc += by
+  $mtx_unlock(@classhead(instance)->mtx)
+}
+
+# Noop for non-class *instance*s.
+export unsafe def addrc<T ~ ~Class>(instance : T*, by : USize) -> {}
+
+# Maybe-mark a class *instance* for sweeping.
+# By default it goes through the instance's attributes recusively.
+export unsafe def rcmark?<T ~ Class>(instance : T*, root : Class* = nullptr) -> Bool {
+  if (root.null?) root = instance as Class*
+  elif (root == instance) return true
+
+  \{% nx["T"].attrs.each do |attr| %}
+    \{% if attr.type == nx["T"] %}
+      if (instance->&{{ attr.id }} == instance ||
+        instance->&{{ attr.id }} == root) return true
+    \{% elsif attr.type < nx["T"] || attr.type.refs?(nx["T"]) %}
+      if (rcmark?(instance->&\{{ attr.id }}, root)) return true
+    \{% end %}
+  \{% end %}
+
+  return false
+}
+
+def rccheck<T : Class>(instance : T) {
+  if (@classhead(instance)->strongrc > 0)
+    return
+
+  if (@classhead(instance)->weakrc > 0) {
+    let marked = 0z
+    let attr_counter = 0z
+
+    instance.iterattr((a) => {
+      attr_counter++
+      if (rcmark?(a, instance)) marked++
+    })
+
+    rcunmark(instance)
+
+    if (marked == attr_counter) {
+      instance.finalize()
+    }
+  } else {
+    instance.finalize()
+  }
+}
+
+def rcmark?<T : Class>(instance : T, root : Class) -> Bool {
+  if (@classhead(instance)->strongrc > 0)
+    return false
+
+  if (instance === root) {
+    rcmark(instance)
+    return true
+  }
+
+  let marked = 0z
+  let attr_counter = 0z
+
+  instance.iterattr((a) => {
+    attr_counter++
+    if (rcmark?(a, root)) marked++
+  })
+
+  if (marked == attr_counter) {
+    rcmark(instance)
+    return true
+  } else {
+    return false
+  }
+}
+
+def rcmark<T : Class>(instance : T) -> void {
+  *@classhead(instance).rcmark = true
+}
+
+def rcunmark<T : Class>(instance : T) -> void {
+  *@classhead(instance).rcmark = false
+  instance.iterattr((a) => rcunmark(a))
+}

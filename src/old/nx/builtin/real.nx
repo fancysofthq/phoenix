@@ -1,0 +1,27 @@
+import Bool from "./bool.nx"
+
+export default trait Real {
+  decl neg() : self
+  alias * => neg()
+
+  decl add(another : self) : self
+  alias +(*) => add(*)
+
+  decl sub(another : self) : self
+  alias -(*) => sub(*)
+
+  decl gt?(another : self) : Bool
+  alias >(*) => gt?(*)
+
+  decl gte?(another : self) : Bool
+  alias >=(*) => gte?(*)
+
+  decl lt?(another : self) : Bool
+  alias <(*) => lt?(*)
+
+  decl lte?(another : self) : Bool
+  alias <=(*) => lte?(*)
+
+  decl eq?(another : self) : Bool
+  alias ==(*) => eq?(*)
+}

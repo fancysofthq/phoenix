@@ -1,0 +1,7 @@
+export import Bool from "./builtin/bool.nx"
+export import Real from "./builtin/real.nx"
+export import {
+  Int,
+  SInt, SInt8, SInt16, SInt32, SInt64,
+  UInt, UInt8, UInt16, UInt32, UInt64
+} from "./builtin/int.nx"

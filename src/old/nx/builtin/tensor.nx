@@ -1,0 +1,6 @@
+export builtin Tensor<Type: T : Number, Dimensions: *D : \uint> {
+
+}
+
+export def Vector<Type: T, Size: Z> => Tensor<T, Z>
+export def Matrix<Type: T, Rows: R, Cols: C> => Tensor<T, R, C>

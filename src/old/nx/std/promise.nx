@@ -1,0 +1,29 @@
+export class NotResolvedYet : Exception
+  static def new() -> self("The promise has not been resolved yet")
+end
+
+export default class Promise<Type: T>
+  let result : T = unsafe! uninitialized T
+  getter resolved : Bool = false
+  getter error : Exception? = nil
+
+  static forall E : Enumerable<self>
+  def any(promises : E) : T
+    return Scheduler.any(promises)
+  end
+
+  # Wait for the promise to resolve, returning its `result` or throwing its `error`.
+  def resolve() : T
+    Scheduler.resolve(this)
+    this.resolved = true
+    if (this.error) then throw this.error
+    else return this.result
+  end
+
+  # Get the promise result if it's resolved, throw `NotResolvedYet` otherwise.
+  def result() : T
+    if (!this.resolved) then throw NotResolvedYet.new()
+    if (this.error) then throw this.error
+    return this.result
+  end
+end

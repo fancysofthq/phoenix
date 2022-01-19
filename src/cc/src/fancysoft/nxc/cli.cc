@@ -7,11 +7,9 @@
 
 #include "fancysoft/nxc/cli.hh"
 #include "fancysoft/nxc/exception.hh"
+#include "fancysoft/nxc/onyx/file.hh"
 #include "fancysoft/nxc/target.hh"
 #include "fancysoft/nxc/workspace.hh"
-#include "fancysoft/util/cli.hh"
-#include "fancysoft/util/logger.hh"
-#include "fancysoft/util/variant.hh"
 
 namespace Fancysoft::NXC {
 
@@ -20,18 +18,22 @@ int CLI::run(int argc, const char **argv) noexcept {
 
   try {
     if (argc > 1) {
-      if (Util::CLI::is_help(argv[1])) {
+      if (_is_help(argv[1])) {
         _display_help(progname, "v0");
         return 0;
       }
 
-      for (auto &cmd : {Compile()}) {
-        if (cmd.detect(argv[1])) {
-          Util::logger.trace("CLI") << "Detected command: " << cmd.name << "\n";
+      _Compile compile{};
+      _Parse parse{};
+      const std::vector<_Command *> cmds = {&compile, &parse};
+
+      for (auto cmd : cmds) {
+        if (cmd->detect(argv[1])) {
+          logger.trace("CLI") << "Detected command: " << cmd->name << "\n";
 
           try {
-            return cmd.exec(argc - 2, argv + 2, progname);
-          } catch (Util::CLI::Error e) {
+            return cmd->exec(argc - 2, argv + 2, progname);
+          } catch (Error e) {
             std::cerr << e.what() << "\n";
             return 1;
           }
@@ -55,8 +57,8 @@ int CLI::run(int argc, const char **argv) noexcept {
   }
 }
 
-std::optional<CLI::Compile::Payload::HelpRequest>
-CLI::Compile::Payload::parse(int argc, const char **argv) {
+std::optional<CLI::_Compile::Payload::HelpRequest>
+CLI::_Compile::Payload::parse(int argc, const char **argv) {
   assert(!_parsed);
 
 #ifdef _WIN32
@@ -86,11 +88,11 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
   for (int i = 0; i < argc; i++) {
     // TODO: If unsupported flag (begins with /)
 
-    Util::logger.trace("CLI") << "Parsing arg " << argv[i] << "\n";
+    logger.trace("CLI") << "Parsing arg " << argv[i] << "\n";
 
     // A help request.
-    if (Util::CLI::is_help(argv[i])) {
-      Util::logger.trace("CLI") << "Requested compile help\n";
+    if (_is_help(argv[i])) {
+      logger.trace("CLI") << "Requested compile help\n";
       return latest_help_request;
     }
 
@@ -99,14 +101,14 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
         std::regex_match(argv[i], regex_matches, output_param_regex) ||
         std::regex_match(argv[i], regex_matches, output_flag_regex)) {
       if (this->_output.has_value())
-        throw Util::CLI::Error("Already specified the output option");
+        throw Error("Already specified the output option");
       else {
         std::filesystem::path path(regex_matches[1].str());
 
         if (path.empty())
-          throw Util::CLI::Error("Output path shall not be empty");
+          throw Error("Output path shall not be empty");
 
-        Util::logger.trace("CLI") << "Set `output` to " << path << "\n";
+        logger.trace("CLI") << "Set `output` to " << path << "\n";
         _output = path;
       }
 
@@ -116,9 +118,9 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
     // The "no-output" option.
     else if (!strcmp(argv[i], no_output_param)) {
       if (this->_output.has_value()) {
-        throw Util::CLI::Error("Already specified the output option");
+        throw Error("Already specified the output option");
       } else {
-        Util::logger.trace("CLI") << "Set `output` to stdout\n";
+        logger.trace("CLI") << "Set `output` to stdout\n";
         _output = std::monostate();
       }
 
@@ -129,9 +131,9 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
     else if (
         !strcmp(argv[i], emit_exe_param) || !strcmp(argv[i], emit_exe_flag)) {
       if (this->_emit.has_value())
-        throw Util::CLI::Error("Already specified the emit option");
+        throw Error("Already specified the emit option");
       else {
-        Util::logger.trace("CLI") << "Set `emit` to `exe`\n";
+        logger.trace("CLI") << "Set `emit` to `exe`\n";
         _emit = Emit::Exe;
       }
 
@@ -142,9 +144,9 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
     else if (
         !strcmp(argv[i], emit_mlir_param) || !strcmp(argv[i], emit_mlir_flag)) {
       if (this->_emit.has_value())
-        throw Util::CLI::Error("Already specified the emit option");
+        throw Error("Already specified the emit option");
       else {
-        Util::logger.trace("CLI") << "Set `emit` to `mlir`\n";
+        logger.trace("CLI") << "Set `emit` to `mlir`\n";
         _emit = Emit::MLIR;
       }
 
@@ -155,9 +157,9 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
     else if (
         !strcmp(argv[i], emit_llir_param) || !strcmp(argv[i], emit_llir_flag)) {
       if (this->_emit.has_value())
-        throw Util::CLI::Error("Already specified the emit option");
+        throw Error("Already specified the emit option");
       else {
-        Util::logger.trace("CLI") << "Set `emit` to `llir`\n";
+        logger.trace("CLI") << "Set `emit` to `llir`\n";
         _emit = Emit::LLIR;
       }
 
@@ -167,9 +169,9 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
     // The "no-emit" option.
     else if (!strcmp(argv[i], no_emit_param)) {
       if (this->_emit.has_value())
-        throw Util::CLI::Error("Already specified the emit option");
+        throw Error("Already specified the emit option");
       else {
-        Util::logger.trace("CLI") << "Set `emit` to `none`\n";
+        logger.trace("CLI") << "Set `emit` to `none`\n";
         _emit = std::monostate();
       }
 
@@ -181,14 +183,14 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
         std::regex_match(argv[i], regex_matches, cache_param_regex) ||
         std::regex_match(argv[i], regex_matches, cache_flag_regex)) {
       if (this->_cache.has_value())
-        throw Util::CLI::Error("Already specified the cache option");
+        throw Error("Already specified the cache option");
       else {
         std::filesystem::path path(regex_matches[1].str());
 
         if (path.empty())
-          throw Util::CLI::Error("Cache path shall not be empty");
+          throw Error("Cache path shall not be empty");
 
-        Util::logger.trace("CLI") << "Set `cache` to " << path << "\n";
+        logger.trace("CLI") << "Set `cache` to " << path << "\n";
         _cache = path;
       }
 
@@ -198,9 +200,9 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
     // The "no-cache" option.
     else if (!strcmp(argv[i], no_cache_param)) {
       if (this->_cache.has_value())
-        throw Util::CLI::Error("Already specified the cache option");
+        throw Error("Already specified the cache option");
       else {
-        Util::logger.trace("CLI") << "Set `cache` to `none`\n";
+        logger.trace("CLI") << "Set `cache` to `none`\n";
         _cache = std::monostate();
       }
 
@@ -209,11 +211,10 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
 
     else if (auto v = CLI::_try_parse_verbosity(argv[i])) {
       if (this->_logger_verbosity.has_value())
-        throw Util::CLI::Error("Already specified the logger verbosity option");
+        throw Error("Already specified the logger verbosity option");
       else {
-        Util::logger.trace("CLI")
-            << "Set `logger verbosity` to "
-            << Util::Logger::verbosity_to_string(v.value()) << "\n";
+        logger.trace("CLI") << "Set `logger verbosity` to "
+                            << Logger::verbosity_to_string(v.value()) << "\n";
 
         this->_logger_verbosity = v;
       }
@@ -224,14 +225,14 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
     // Input path, the only positional argument.
     else {
       if (_input.has_value())
-        throw Util::CLI::Error("Already specified the input path");
+        throw Error("Already specified the input path");
       else {
         std::filesystem::path path(argv[i]);
 
         if (path.empty())
-          throw Util::CLI::Error("Input path shall not be empty");
+          throw Error("Input path shall not be empty");
 
-        Util::logger.trace("CLI") << "Set `input` to " << path << "\n";
+        logger.trace("CLI") << "Set `input` to " << path << "\n";
         _input = path;
       }
 
@@ -240,13 +241,13 @@ CLI::Compile::Payload::parse(int argc, const char **argv) {
   }
 
   if (!_input.has_value())
-    throw Util::CLI::Error("Missing input path");
+    throw Error("Missing input path");
 
   _parsed = true;
   return std::nullopt; // No help was requested
 }
 
-int CLI::Compile::exec(
+int CLI::_Compile::exec(
     int argc, const char **argv, const std::string progname) const {
   auto payload = Payload();
   auto help_request = payload.parse(argc, argv);
@@ -268,7 +269,7 @@ int CLI::Compile::exec(
       // Caching is explicitly disabled.
     }
   } else
-    cache = std::filesystem::current_path().append("./.fnxccache/");
+    cache = std::filesystem::current_path().append("./.fnxcache/");
 
   std::optional<Payload::Emit> emit;
   if (payload.emit().has_value()) {
@@ -302,7 +303,7 @@ int CLI::Compile::exec(
         output = path.replace_extension(".exe");
         break;
       case Payload::Emit::MLIR:
-        output = path.replace_extension(".ml");
+        output = path.replace_extension(".nxml");
         break;
       case Payload::Emit::LLIR:
         output = path.replace_extension(".ll");
@@ -315,8 +316,7 @@ int CLI::Compile::exec(
 
     if (payload.output().has_value()) {
       // ...but output is provided. That's a error.
-      throw Util::CLI::Error(
-          "Shall not have output set while not emitting anything");
+      throw Error("Shall not have output set while not emitting anything");
     }
   }
 
@@ -324,11 +324,9 @@ int CLI::Compile::exec(
     switch (emit.value()) {
     case Payload::Emit::Exe: {
       if (std::get_if<std::ostream *>(&output))
-        throw Util::CLI::Error(
-            "Can not output to stdout when emitting an executable");
+        throw Error("Can not output to stdout when emitting an executable");
       else if (std::get_if<std::monostate>(&output))
-        throw Util::CLI::Error(
-            "Shall have output enabled when emitting an executable");
+        throw Error("Shall have output enabled when emitting an executable");
 
       break;
     }
@@ -355,7 +353,7 @@ int CLI::Compile::exec(
           try {
             program.emit_exe(*path, {}, {});
           } catch (LinkerFailure e) {
-            Util::logger.error("Linker") << "Linkage failed:\n" << e.what();
+            logger.error("Linker") << "Linkage failed:\n" << e.what();
             return 1;
           }
         else
@@ -368,7 +366,7 @@ int CLI::Compile::exec(
           program.compile_mlir();
         else
           program.emit_mlir(
-              Util::Variant::downcast<
+              Util::Variant::cast<
                   std::variant<std::filesystem::path, std::ostream *>>(output),
               Program::IROutputFormat::Raw);
 
@@ -379,7 +377,7 @@ int CLI::Compile::exec(
           program.compile_llir();
         else
           program.emit_llir(
-              Util::Variant::downcast<
+              Util::Variant::cast<
                   std::variant<std::filesystem::path, std::ostream *>>(output),
               Program::IROutputFormat::Raw);
 
@@ -396,8 +394,46 @@ int CLI::Compile::exec(
   return 0;
 }
 
-std::optional<Util::Logger::Verbosity>
-CLI::_try_parse_verbosity(const char *arg) {
+int CLI::_Parse::exec(
+    int argc, const char **argv, const std::string progname) const {
+  if (argc == 0)
+    throw Error("Expected file path");
+
+  if (_is_help(argv[0])) {
+    _display_help(progname);
+    return 0;
+  }
+
+  std::filesystem::path input = argv[0];
+
+  if (argc > 1) {
+    if (_is_help(argv[1])) {
+      _display_help(progname);
+      return 0;
+    } else {
+      throw Error("Too many arguments");
+    }
+  }
+
+  input = std::filesystem::current_path() / input;
+  logger.debug("CLI") << "Would parse " << input << "\n";
+
+  auto file = std::make_shared<Onyx::File>(input, nullptr);
+
+  try {
+    file->parse();
+  } catch (Panic panic) {
+    _print(panic);
+    return 1;
+  }
+
+  logger.trace("CLI") << "Parsed " << input << "\n";
+
+  file->ast()->inspect(std::cout);
+  return 0;
+}
+
+std::optional<Logger::Verbosity> CLI::_try_parse_verbosity(const char *arg) {
 #ifdef _WIN32
   const static std::regex v_fancy_regex("\\/(v{1,3})$");
   const static std::regex q_fancy_regex("\\/(q{1,3})$");
@@ -412,39 +448,37 @@ CLI::_try_parse_verbosity(const char *arg) {
   std::cmatch regex_matches;
 
   if (std::regex_match(arg, regex_matches, v_fancy_regex)) {
-    return static_cast<Util::Logger::Verbosity>(
-        static_cast<int>(Util::Logger::Verbosity::Warn) -
-        regex_matches[1].length());
+    return static_cast<Logger::Verbosity>(
+        static_cast<int>(Logger::Verbosity::Warn) - regex_matches[1].length());
   } else if (std::regex_match(arg, regex_matches, q_fancy_regex)) {
-    return static_cast<Util::Logger::Verbosity>(
-        static_cast<int>(Util::Logger::Verbosity::Warn) +
-        regex_matches[1].length());
+    return static_cast<Logger::Verbosity>(
+        static_cast<int>(Logger::Verbosity::Warn) + regex_matches[1].length());
   } else if (std::regex_match(arg, regex_matches, v_explicit_index_regex)) {
-    return static_cast<Util::Logger::Verbosity>(
+    return static_cast<Logger::Verbosity>(
         strtol(regex_matches[1].str().c_str(), nullptr, 0));
   } else if (std::regex_match(arg, regex_matches, v_explicit_level_regex)) {
     switch (regex_matches[1].str()[0]) {
     case 'T':
     case 't':
-      return Util::Logger::Verbosity::Trace;
+      return Logger::Verbosity::Trace;
     case 'D':
     case 'd':
-      return Util::Logger::Verbosity::Debug;
+      return Logger::Verbosity::Debug;
     case 'I':
     case 'i':
-      return Util::Logger::Verbosity::Info;
+      return Logger::Verbosity::Info;
     case 'W':
     case 'w':
-      return Util::Logger::Verbosity::Warn;
+      return Logger::Verbosity::Warn;
     case 'E':
     case 'e':
-      return Util::Logger::Verbosity::Error;
+      return Logger::Verbosity::Error;
     case 'F':
     case 'f':
-      return Util::Logger::Verbosity::Fatal;
+      return Logger::Verbosity::Fatal;
     case 'N':
     case 'n':
-      return Util::Logger::Verbosity::None;
+      return Logger::Verbosity::None;
     default:
       assert(false);
       throw;
@@ -454,7 +488,7 @@ CLI::_try_parse_verbosity(const char *arg) {
   }
 }
 
-void CLI::Compile::_display_help(
+void CLI::_Compile::_display_help(
     Payload::HelpRequest request, const std::string progname) const {
 #ifdef _WIN32
   switch (request) {
@@ -615,6 +649,20 @@ void CLI::Compile::_display_help(
 #endif
 };
 
+void CLI::_Parse::_display_help(const std::string progname) const {
+#ifdef _WIN32
+  fmt::print(
+      std::cout,
+      "{0} parse - Parse a source file AST\n"
+      "\n"
+      "Usage:\n"
+      "\n"
+      "  {0} parse <file> [options]\n"
+      "  {0} p <file> [options]\n",
+      progname);
+#endif
+}
+
 void CLI::_display_help(const std::string progname, const std::string version) {
   fmt::print(
       std::cout,
@@ -626,6 +674,7 @@ void CLI::_display_help(const std::string progname, const std::string version) {
       "Available commands:\n"
       "\n"
       "  compile <file>  Compile an Onyx program\n"
+      "  parse <file>    Parse a source file AST\n"
       "  format <file>   Format an Onyx source file\n"
       "  daemon          Launch a daemon instance\n"
       "\n"
@@ -652,6 +701,25 @@ void CLI::_display_help(const std::string progname, const std::string version) {
       ,
       version,
       progname);
+}
+
+void CLI::_print(Panic panic) {
+  auto &out = logger.error();
+  out << "Panic! " << panic.what();
+
+  if (panic.placement.has_value()) {
+    out << "\n\n";
+    panic.placement->debug(out);
+  }
+
+  for (auto &note : panic.notes) {
+    out << "\nNote: " << note.message << "\n";
+
+    if (note.placement.has_value()) {
+      out << "\n\n";
+      note.placement->debug(out);
+    }
+  }
 }
 
 } // namespace Fancysoft::NXC

@@ -1,0 +1,25 @@
+import Indexable from "./indexable.nx"
+import Enumerable from "./enumerable.nx"
+
+# An UTF-8-encoded immutable Unicode characters string.
+class String ~ Indexable<USize, Char> && Enumerable<Char>
+  # The non-null-terminated string bytes pointer.
+  public final bytes : Byte*
+
+  # The string size in bytes.
+  public final size : USize
+
+  impl &Indexable.[](index : USize) : Char
+  end
+
+  impl &Enumerable.each(block : (Char) =>)
+  end
+
+  impl &(Indexable & Enumerable).each_with_index(block : (USize, Char) =>)
+  end
+
+  # Calculate the amount of Unicode characters in this string.
+  def length() : USize
+    # Some Unicode stuff.
+  end
+end

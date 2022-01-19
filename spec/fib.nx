@@ -1,0 +1,25 @@
+extern void exit(int);
+
+# @[LLVM::Builtin<"i32">]
+@[Builtin<"i32">]
+struct Int32 { };
+
+def Int32:lte(this : Int32, another : Int32) -> {
+  final result : Int32 = uninitialized;
+  unsafe! @asm(
+    template: "",
+    in: (("r", this), ("r", another)),
+    out: (("r", result)));
+}
+
+def fib(n : Int32) {
+  if (Int32:lte(n, 1)) {
+    return n;
+  } else {
+    return fib(Int32:sub(n, 1)) +
+      fib(Int32:sub(n, 2));
+  }
+}
+
+final n = 10;
+unsafe! $exit(Bool:not(Int32:eq(fib(n), 42)));

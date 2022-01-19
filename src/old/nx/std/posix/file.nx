@@ -1,0 +1,33 @@
+extern #include <stdio.h>
+
+import File from "../../spec/std/posix/file.nxh"
+
+impl public File:File(path : File::Path, access : File::Access) {
+  final path_string = path.normalize().to_s()
+  final access_string = access.to_s()
+  this.descriptor = unsafe! $fopen(path_string.pointer, access_string.pointer) as USize
+  this.path = path
+}
+
+impl unsafe public File:File(descriptor) {
+  this.descriptor = descriptor
+  this.path = nil
+}
+
+reimpl unsafe File:finalize() {
+  final ret = unsafe! $fclose(this.descriptor as $FILE*)
+
+  switch (ret) {
+    case 0    return
+    case $EOF throw File::EOF(this)
+    else      throw Exception("Unexpected `fclose()` return value %{}" % ret)
+  }
+}
+
+impl File:write(content : CString) {
+  unsafe! $fputs(content as $char*, this.descriptor as $FILE*)
+}
+
+impl File:write(content : String) {
+  unsafe! $fputs(content.pointer as $char*, this.descriptor as $FILE*)
+}

@@ -1,0 +1,7 @@
+# The annotation adds the following documentation to the annotee, and also self:
+#
+# NOTE: It's not globally available by default.
+# To use it directly, `import { T } from "builtin/file.nx"`.
+#
+# @[BuiltinHidden]
+export annotation BuiltinHidden;

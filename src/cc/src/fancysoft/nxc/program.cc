@@ -1,7 +1,11 @@
-#include <fmt/ostream.h>
-
 #include <fstream>
 #include <iostream>
+#include <memory>
+#include <ostream>
+#include <sstream>
+
+#include <fmt/ostream.h>
+#include <lld/Common/Driver.h>
 #include <llvm/Pass.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
@@ -9,14 +13,9 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_os_ostream.h>
 
-#include <lld/Common/Driver.h>
-#include <memory>
-#include <ostream>
-#include <sstream>
-
+#include "fancysoft/nxc/logger.hh"
 #include "fancysoft/nxc/onyx/file.hh"
 #include "fancysoft/nxc/program.hh"
-#include "fancysoft/util/logger.hh"
 
 namespace Fancysoft::NXC {
 
@@ -28,23 +27,23 @@ Program::Program(CompilationContext ctx, std::shared_ptr<Workspace> workspace) :
 }
 
 void Program::compile_mlir() {
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "()\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "()\n";
 
   if (!_entry_module->compiled())
     _entry_module->compile();
 
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
 }
 
 void Program::emit_mlir(
     std::variant<std::filesystem::path, std::ostream *> out,
     IROutputFormat format) {
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "()\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "()\n";
   compile_mlir();
 
   switch (format) {
   case IROutputFormat::Raw: {
-    Util::logger.debug("Program") << "Emitting MLIR, raw\n";
+    logger.debug("Program") << "Emitting MLIR, raw\n";
 
     std::unique_ptr<std::ofstream> file;
     std::ostream *output;
@@ -66,15 +65,15 @@ void Program::emit_mlir(
       module.second->mlir()->write(*output);
     }
 
-    Util::logger.trace("Program") << "Successfully emitted MLIR\n";
+    logger.trace("Program") << "Successfully emitted MLIR\n";
   }
   }
 
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
 }
 
 void Program::compile_llir() {
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "()\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "()\n";
   compile_mlir();
 
   if (!_llvm_ctx)
@@ -93,18 +92,18 @@ void Program::compile_llir() {
     mlir_module.second->lower(move(llvm_module));
   }
 
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
 }
 
 void Program::emit_llir(
     std::variant<std::filesystem::path, std::ostream *> out,
     IROutputFormat format) {
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "()\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "()\n";
   compile_llir();
 
   switch (format) {
   case IROutputFormat::Raw: {
-    Util::logger.debug("Program") << "Emitting LLIR, raw\n";
+    logger.debug("Program") << "Emitting LLIR, raw\n";
 
     std::unique_ptr<std::ofstream> file;
     std::ostream *output;
@@ -128,21 +127,21 @@ void Program::emit_llir(
       module.second->llir()->print(llvm_ostream, nullptr, true, true);
     }
 
-    Util::logger.trace("Program") << "Successfully emitted LLIR\n";
+    logger.trace("Program") << "Successfully emitted LLIR\n";
   }
   }
 
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
 }
 
 void Program::emit_exe(
     std::filesystem::path exe_path,
     std::vector<std::filesystem::path> lib_paths,
     std::vector<std::string> linked_libs) {
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "()\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "()\n";
   _compile_obj();
   _link(exe_path, lib_paths, linked_libs);
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
 }
 
 Program::_LLVMContext::_LLVMContext() :
@@ -170,13 +169,13 @@ Program::_LLVMContext::_LLVMContext() :
   this->target_machine =
       target->createTargetMachine(target_triple, cpu, features, opt, RM);
 
-  Util::logger.debug("Program")
-      << "Configured target triple: "
-      << this->target_machine->getTargetTriple().getTriple() << "\n";
+  logger.debug("Program") << "Configured target triple: "
+                          << this->target_machine->getTargetTriple().getTriple()
+                          << "\n";
 }
 
 void Program::_compile_obj() {
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "()\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "()\n";
   compile_llir();
 
   llvm::legacy::PassManager pass;
@@ -197,24 +196,22 @@ void Program::_compile_obj() {
             pass, file, nullptr, file_type))
       throw "The target machine can't emit a file of this type";
 
-    Util::logger.trace("Program")
-        << "Compiling object file at " << obj_path << "\n";
+    logger.trace("Program") << "Compiling object file at " << obj_path << "\n";
 
     pass.run(*module.second->llir());
     file.flush();
 
-    Util::logger.debug("Program")
-        << "Compiled object file at " << obj_path << "\n";
+    logger.debug("Program") << "Compiled object file at " << obj_path << "\n";
   }
 
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "() exit\n";
 }
 
 void Program::_link(
     std::filesystem::path exe_path,
     std::vector<std::filesystem::path> lib_paths,
     std::vector<std::string> linked_libs) {
-  Util::logger.trace("Program") << __builtin_FUNCTION() << "()\n";
+  logger.trace("Program") << __builtin_FUNCTION() << "()\n";
 
   lib_paths.push_back("C:\\Program Files (x86)\\Windows "
                       "Kits\\10\\Lib\\10.0.18362.0\\ucrt\\x64");
@@ -253,7 +250,7 @@ void Program::_link(
   //                "Kits\\10\\Lib\\10.0.18362.0\\ucrt\\x64\\libucrt.lib");
 
   fmt::print(
-      Util::logger.debug("Program"), "Linker args: {}\n", fmt::join(args, " "));
+      logger.debug("Program"), "Linker args: {}\n", fmt::join(args, " "));
 
   std::vector<const char *> char_args;
 
@@ -264,7 +261,7 @@ void Program::_link(
   std::stringstream ssout;
   std::stringstream sserr;
 
-  llvm::raw_os_ostream sout(Util::logger.debug("Linker") << "Output:\n");
+  llvm::raw_os_ostream sout(logger.debug("Linker") << "Output:\n");
   llvm::raw_os_ostream serr(std::cerr); // TODO: Capture the output
 
   bool success = !!lld::coff::link(char_args, false, sout, serr);

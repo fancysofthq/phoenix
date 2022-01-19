@@ -1,0 +1,26 @@
+export default class Scheduler {
+  # ```
+  # final promise : Promise<Int32> = @async(() -=> 1 + 2) # Doesn't block
+  # final result : Int32 = @await(promise)                # Blocks
+  # @assert(result == 3)
+  # ```
+  def async<T>(lambda : Lambda<fragile+ () ~> T>) -> Promise<T> {
+
+  }
+
+  def parallel<T>(lambda : Lambda<threadsafe () ~> T>) -> Promise<T> {
+
+  }
+
+  def await<T>(promise : Promise<T>) -> T {
+
+  }
+
+  forall <Z> def all<T>(promises : Promise<T>[Z]) -> T[Z] {
+
+  }
+
+  forall <T, E : Enumerable<Promise<T>> & ~Array> def all(promises : E) -> List<T> {
+
+  }
+}

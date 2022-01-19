@@ -1,0 +1,28 @@
+import Bool from "./bool.nx"
+import Real from "./real.nx"
+
+# The builtin integer type.
+export builtin struct Int<Signed: S ~ \Bool, Bitsize: Z ~ \UInt> : Real {
+  let this : self
+
+  forall <T ~ Int> builtin impl add(other : T) : self
+  forall <T ~ Int> builtin impl lte?(other : T) : Bool
+}
+
+export alias Int<Bitsize: Z> to Int<true, Z>
+export alias Int8 to Int<8>
+export alias Int16 to Int<16>
+export alias Int32 to Int<32>
+export alias Int64 to Int<64>
+
+export alias UInt<Bitsize: Z> to Int<false, Z>
+export alias UInt8 to UInt<8>
+export alias UInt16 to UInt<16>
+export alias UInt32 to UInt<32>
+export alias UInt64 to UInt<64>
+
+export alias Byte to UInt8
+
+# TODO: Make these platform-dependent.
+export alias SSize to Int64
+export alias Size to UInt64

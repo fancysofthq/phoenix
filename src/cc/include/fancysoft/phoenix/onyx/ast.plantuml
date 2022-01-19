@@ -1,0 +1,111 @@
+@startuml AST
+
+left to right direction
+
+abstract class Ion {}
+
+abstract class Superion {
+  + template_args : VarDefinition
+}
+
+class VarSuperion extends Superion { }
+
+class FunctionSuperion extends Superion {
+  + declarations : FunctionDeclaration
+  + implementations : FunctionImplementation
+  + definitions : FunctionDefinition
+  + reimplementations : FunctionReimplementation
+}
+
+abstract class TypeSuperion extends Superion {
+  + {abstract} defs
+  + {abstract} exts
+}
+
+class VarDefinition extends Ion { }
+
+abstract class Function extends Ion {
+  + superion : FunctionSuperion
+}
+
+class FunctionDeclaration extends Function {}
+class FunctionImplementation extends Function {}
+class FunctionDefinition extends Function {}
+class FunctionReimplementation extends Function {}
+
+abstract class Typeion extends Ion {
+  + superion : TypeSuperion
+  + {abstract} ancestors : Typeion
+  + static_fields : VarDef
+  + static_method_declarations : FunctionDeclaration
+  + static_method_implementations : FunctionImplementation
+  + static_method_definitions : FunctionDefinition
+  + static_method_reimplementations : FunctionReimplementation
+}
+
+abstract class Extension extends Typeion {
+  + forall : VarDefinition
+  + template_args : Expr
+}
+
+abstract class Traition \
+extends Typeion \
+implements HasMethods {
+
+}
+
+class TraitDefinition extends Traition { }
+class TraitExtension extends Traition, Extension { }
+
+abstract class Annotation extends Typeion { }
+class AnnotationDefinition extends Annotation { }
+class AnnotationExtension extends Annotation, Extension { }
+
+abstract class Enumion extends Typeion {
+  + elements
+}
+
+class EnumDefinition extends Enumion { }
+class EnumExtension extends Enumion, Extension { }
+
+abstract class Objection \
+extends Typeion \
+implements HasMethods, HasFields {
+}
+
+class ObjectDefinition extends Objection { }
+class StructDefinition extends ObjectDefinition { }
+class ClassDefinition extends ObjectDefinition { }
+class UnitDefinition extends ObjectDefinition { }
+
+class ObjectExtension extends Objection, Extension { }
+class StructExtension extends ObjectExtension { }
+class ClassExtension extends ObjectExtension { }
+class UnitExtension extends ObjectExtension { }
+
+interface HasMethods {
+  + method_decls : FunctionDeclaration
+  + method_defs : FunctionDefinition
+  + method_impls : FunctionImplementation
+  + method_reimpls : FunctionReimplementation
+}
+
+interface HasFields {
+  + field_defs : VarDefinition
+}
+
+' Superion::template_args --> \
+' VarDefinition
+
+' FunctionSuperion::declarations --> \
+' FunctionDeclaration::superion
+
+' TypeSuperion::defs --> Definition
+' TypeSuperion::exts --> Ext
+
+' HasMethods::method_decls --> FunctionDeclaration
+' HasMethods::method_defs --> FunctionDefinition
+' HasMethods::method_impls --> FunctionImplementation
+' HasMethods::method_reimpls --> FunctionReimplementation
+
+' FunctionImplementation::superion --> FunctionSuperion::impls

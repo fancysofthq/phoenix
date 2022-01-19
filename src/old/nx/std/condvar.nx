@@ -1,0 +1,10 @@
+extern #include <threads.h>
+
+@[NoClassMutex]
+export default class Condvar
+  private final condvar := uninitialized $cnd_t
+
+  threadsafe def notify(max_receivers : USize := 1);
+  threadsafe def broadcast();
+  threadsafe def wait(mutex : Mutex, timeout : Time? := nil);
+end

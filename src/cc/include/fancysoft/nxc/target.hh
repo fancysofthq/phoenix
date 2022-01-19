@@ -3,6 +3,7 @@
 namespace Fancysoft {
 namespace NXC {
 
+/// A compilation target configuration.
 struct Target {
   enum class ObjectFileFormat {
     COFF,

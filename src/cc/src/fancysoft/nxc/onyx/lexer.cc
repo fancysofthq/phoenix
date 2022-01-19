@@ -1,4 +1,7 @@
+#include <exception>
+
 #include "fancysoft/nxc/onyx/lexer.hh"
+#include "fancysoft/nxc/onyx/token.hh"
 
 namespace Fancysoft::NXC::Onyx {
 
@@ -26,15 +29,15 @@ Util::Coro::Generator<Token::Any> Lexer::lex() noexcept {
         while (_is_space())
           _advance();
 
-        co_yield _punct(Token::Punct::HSpace);
+        co_yield _punct(Token::Punct::Space);
         continue;
       }
 
       // Either a keyword or an identifier.
-      else if (_is_latin_lowercase() || _is('_')) {
+      else if (_is_latin_alpha() || _is('_')) {
         std::stringbuf buf;
 
-        while (_is_latin_lowercase() || _is({'_', '!', '?'}) || _is_decimal()) {
+        while (_is_latin_alpha() || _is({'_', '!', '?'}) || _is_decimal()) {
           buf.sputc(_code_point);
           _advance();
         }
@@ -53,8 +56,15 @@ Util::Coro::Generator<Token::Any> Lexer::lex() noexcept {
       // A string literal.
       else if (_is('"')) {
         _advance(); // Consume opening `"`
-        auto string = _lex_string_literal_content('"');
+        auto string = _lex_string_content('"');
         co_yield _token<Token::StringLiteral>(string);
+        continue;
+      }
+
+      // An integer literal. Note that it sign would be lexed as an unop.
+      else if (_is_decimal()) {
+        auto _int = _lex_int();
+        co_yield _token<Token::IntLiteral>(_int);
         continue;
       }
 
@@ -64,7 +74,7 @@ Util::Coro::Generator<Token::Any> Lexer::lex() noexcept {
 
         if (_is('"')) {
           _advance(); // Consume opening `"`
-          auto string = _lex_string_literal_content('"');
+          auto string = _lex_string_content('"');
           co_yield _token<Token::CStringLiteral>(string);
           continue;
         } else {
@@ -81,45 +91,63 @@ Util::Coro::Generator<Token::Any> Lexer::lex() noexcept {
       }
 
       // An operator.
-      else if (_is_op()) {
+      else if (Token::Op::is(_code_point)) {
         std::stringbuf buf;
 
-        while (_is_op()) {
+        while (Token::Op::is(_code_point)) {
           buf.sputc(_code_point);
           _advance();
         }
 
-        co_yield _token<Token::Op>(buf.str());
+        auto str = buf.str();
+
+        // A freestanding angle breacket is considered a punctuation.
+        if (!str.compare("<"))
+          co_yield _punct(Token::Punct::OpenAngle);
+        else if (!str.compare(">"))
+          co_yield _punct(Token::Punct::CloseAngle);
+        else
+          co_yield _token<Token::Op>(str);
+
         continue;
+      }
+
+      // `::` (static access) is the only punctuation token consisting of
+      // multiple codepoints. It thus shall be handled specifically.
+      else if (_is(':')) {
+        _advance();
+
+        if (_is(':')) {
+          _advance();
+          co_yield _punct(Token::Punct::AccessStatic);
+          continue;
+        } else {
+          co_yield _punct(Token::Punct::Colon);
+          continue;
+        }
       }
 
       // A punctuation token.
-      else {
-        switch (_code_point) {
-        case ',':
-          co_yield _punct(Token::Punct::Comma);
-          break;
-        case '(':
-          co_yield _punct(Token::Punct::OpenParen);
-          break;
-        case ')':
-          co_yield _punct(Token::Punct::CloseParen);
-          break;
-        default:
-          throw _unexpected();
-        }
-
+      else if (auto kind = Token::Punct::char_to_kind(_code_point)) {
+        co_yield _punct(kind.value());
         _advance();
         continue;
       }
+
+      else {
+        throw _unexpected();
+      }
     } while (!_is_eof());
+  } catch (Panic &p) {
+    _panic = p;
+    co_return;
   } catch (std::exception &e) {
     _exception = e;
     co_return;
   }
 };
 
-std::string Lexer::_lex_string_literal_content(char terminator) {
+std::string Lexer::_lex_string_content(char terminator) {
   std::stringbuf buf;
   bool escaped = false;
 
@@ -132,5 +160,16 @@ std::string Lexer::_lex_string_literal_content(char terminator) {
   _advance(); // Consume closing `"`
   return buf.str();
 }
+
+long long Lexer::_lex_int() {
+  std::stringbuf buf;
+
+  while (_is_decimal()) {
+    buf.sputc(_code_point);
+    _advance();
+  }
+
+  return atoll(buf.str().c_str());
+};
 
 } // namespace Fancysoft::NXC::Onyx

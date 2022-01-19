@@ -1,0 +1,11 @@
+import Indexable from "./indexable.nx"
+
+export default trait Mappable<T>
+  decl map<U>(block : (T) => U) : undefined
+  decl mut map!(block : (T) => T) : void
+end
+
+forall <K, V> impl Indexable<K, V> & Mappable<V>
+  decl map_with_index<T>(block : (K, V) => T) : undefined
+  decl mut map_with_index!(block : (K, V) => V) : void
+end

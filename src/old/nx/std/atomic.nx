@@ -1,0 +1,128 @@
+import MemoryOrdering from "./memorder.nx"
+
+@[NoClassMutex]
+export default class Atomic<T>
+end
+
+forall <T ~ Integer || Bool || Float> impl Atomic<T>
+  private final value : T
+
+  static def ()(value : T) -> self{value}
+
+  # Get the value at *pointer* with sequential consistency.
+  # TODO: `load atomic`.
+  threadsafe builtin
+  static def get(pointer : T*r)
+
+  # Get the value at *pointer* with defined *ordering*.
+  fragile builtin
+  static def get(pointer : T*r, ordering : MemoryOrdering)
+
+  # Set the *value* at *pointer* with sequential consistency, returning the old value.
+  # TODO: `atomicrmw xchg`.
+  threadsafe builtin
+  static def set(pointer : T*r, value : T) : T
+
+  # Set the *value* at *pointer* with defined *ordering*, returning the old value.
+  fragile builtin
+  static def set(pointer : T*r, value : T, ordering : MemoryOrdering) : T
+
+  # TODO: `cmpxchg`
+  threadsafe static builtin
+  def cmpset(pointer : T*r, old : T, new : T) : (T, Bool)
+
+  # TODO:
+  fragile static builtin
+  def cmpset(
+    pointer : T*r,
+    old : T,
+    new : T,
+    success_ordering : MemoryOrdering,
+    failure_ordering : MemoryOrdering) : (T, Bool)
+
+  # Get the value with sequential consistency.
+  threadsafe
+  def get() : T -> self.get(this.&value)
+
+  # Get the value with defined *ordering*.
+  fragile
+  def get(ordering : MemoryOrdering) : T -> self.get(this.&value, ordering)
+
+  # Set the *value* with sequential consistency, returning the old value.
+  threadsafe
+  def set(value : T) : T -> self.set(this.&value, value)
+
+  # Set the *value* with defined *ordering*, returning the old value.
+  fragile
+  def set(value : T, ordering : MemoryOrdering) : T ->
+    self.set(this.&value, value, ordering)
+
+  # TODO:
+  threadsafe
+  def cmpset(old : T, new : T) : (T, Bool) ->
+    self.cmpset(this.&value, old, new)
+
+  # TODO:
+  fragile
+  def cmpset(
+    old : T,
+    new : T,
+    success_ordering : MemoryOrdering,
+    failure_ordering : MemoryOrdering) : (T, Bool) ->
+    self.cmpset(this.&value, old, new, success_ordering, failure_ordering)
+end
+
+forall <T ~ Integer || Float> impl Atomic<T>
+  # TODO: `atomicrmw add`.
+  threadsafe builtin
+  static def add(pointer : T*rw, value : T) : T
+
+  fragile builtin
+  static def add(pointer : T*rw, value : T, ordering : MemoryOrdering) : T
+
+  # TODO: `atomicrmw sub`.
+  threadsafe builtin
+  static def sub(pointer : T*rw, value : T) : T
+
+  fragile builtin
+  static def sub(pointer : T*rw, value : T, ordering : MemoryOrdering) : T
+end
+
+forall <T ~ Float> impl Atomic<T>
+  # TODO: `atomicrmw fadd`.
+  threadsafe builtin
+  static def add(pointer : T*rw, value : T) : T
+
+  fragile builtin
+  static def add(pointer : T*rw, value : T, ordering : MemoryOrdering) : T
+
+  # TODO: `atomicrmw fsub`.
+  threadsafe builtin
+  static def sub(pointer : T*rw, value : T) : T
+
+  fragile builtin
+  static def sub(pointer : T*rw, value : T, ordering : MemoryOrdering) : T
+end
+
+forall <T ~ Integer> impl Atomic<T>
+  and
+  &=
+
+  nand
+
+  or
+  |=
+
+  xor
+  ^=
+end
+
+forall <T ~ SInt> impl Atomic<T>
+  min
+  max
+end
+
+forall <T ~ UInt> impl Atomic<T>
+  min
+  max
+end

@@ -1,0 +1,46 @@
+== Compilation
+
+A compilation command accepts a single entry file.
+
+The file is being _parsed_ into the file's CST instance.
+During the parsing, immediate macros are evaluated.
+A CST allows to resemble the original source code preserving its formatting features; however, some of the formatting is enforced.
+For example, FNX always compresses multiple empty lines into one.
+
+Upon encountering an `import` directive the compiler parses the imported file's CST in parallel, inherently implying that immediate macros evaluate in file-local context, i.e. isolated.
+
+There is the global AST instance with synchronised access.
+Once a source file CST is parsed, it begins _compilation_, merging its changes with the AST.
+Despite of the AST being global, original locations are preserved so that specializations reside in a MLIR module mapped to the containing file.
+
+Upon encountering an `import` directive, the source file waits until the imported file compilation process _yields_.
+A source file compilation yields when it's either compiled completely, or a circular `import` directive is encountered, or an undeclared identifier from a circular dependency is encountered.
+The latter two are referenced to as _jumps_.
+If another jump is scheduled *immediately* after a jump back to the previous file, the compiler panics: an unresolvable loop dependency is detected.
+
+An AST _entity_ is either a type declaration, a function declaration or a variable definition.
+Imported identifiers are stored in current file as references to the AST entities exported from the imported file.
+
+A change in a source file would trigger re-compilation of all of its dependants.
+For that to work correctly, a file shall cache the whole AST snapshot after it's compiled.
+Alternatively, a file may cache the AST difference it conveys.
+
+A declaration compilation is the easiest one due to its not having a body.
+The compiler ensures the same kind of a declaration (e.g. `struct` and `class` declarations are incompatible).
+A template argument restriction requires the referenced declaration to already exist, i.e. no forward references.
+A specialization reference within a template argument doesn't require the implementation to exist yet, only declaration.
+
+TODO: How to call declaration, implementaion and definition in one word?
+
+A type or function implementation isn't compiled unless specialized.
+_Specialization_ happens when a code is deemed to be actually used in runtime.
+A top-level expression therefore triggers specialization of the referenced entities.
+A specialization is contained in a MLIR module linked to the file containing the implementation.
+
+A workspace contains multiple programs, whereas a program begins with a single source file.
+A program instance holds the AST.
+
+An Onyx source file contains a number of C blocks, each mapped to an `extern` directive.
+A C block contains the CST.
+Upon compilation, the block's contents is merged with the global C AST (synchronized) unless a entity has `static` linkage.
+A static C entity goes to the file-local C AST owned by the containing Onyx source file instance.

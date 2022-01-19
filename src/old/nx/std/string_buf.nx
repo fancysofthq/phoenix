@@ -1,0 +1,45 @@
+import { log } from "math"
+
+export default class StringBuf
+  getter bytes : Byte*?
+  getter size : USize
+  getter capacity : USize
+
+  static def new(string : String)
+    final capacity = 2 ** log(2, string.size).floor()
+    final pointer = unsafe! $malloc(capacity) as Byte*
+    unsafe! $strcpy(pointer as $char*, string.bytes as $`const char*`)
+    return self(pointer: pointer, size: string.size, capacity: capacity)
+  end
+
+  static def new()
+    return self(pointer: Byte*.null(), size: 0, capacity: 0)
+  end
+
+  def append(string : String) : self
+    final new_capacity = this.size + string.size
+
+    if (capacity <= new_capacity)
+      this.bytes = (if (!this.bytes.null?()) {
+        unsafe! $realloc(this.bytes as $void*, new_capacity)
+      } else {
+        unsafe! $malloc(new_capacity) as Byte*
+      }) as Byte*
+
+      this.capacity = new_capacity
+    end
+
+    unsafe! $strcpy((this.bytes + this.size) as $char*, &string as $char*)
+    this.size += string.size
+
+    return this
+  end
+
+  alias <<(*) => append(*)
+
+  reimpl finalize()
+    if (!this.bytes.null?())
+      unsafe! $free(this.bytes as $void*)
+    end
+  end
+end

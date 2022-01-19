@@ -1,0 +1,84 @@
+import * as Mem from "./memory.nx"
+import { log } from "./math.nx"
+import Indexable, { IndexError } from "./indexable.nx"
+
+export default class List<Type: T> : [
+  Indexable<USize, T> &&
+  Enumerable<T> &&
+  Mappable<T> &&
+  Beginful<T> &&
+  Endful<T>
+] {
+  getter capacity, size = 0z
+
+  # :privatedoc:
+  # The raw elements pointer.
+  getter pointer : T*
+
+  static def self(capacity = 0z)
+    final pointer = (if (capacity > 0) {
+      capacity = 2 ** log(2, capacity).floor()
+      Mem::allocate<T>(capacity)
+    } else {
+      unsafe! uninitialized T*
+    })
+
+    return self({ pointer, capacity })
+  end
+
+  impl self~Endful.push(value : T) : void throws Mem::AllocationError
+    if (this.size + 1 >= this.capacity)
+      this.realloc(this.size + 1)
+
+    this[this.size += 1] = value
+  end
+
+  impl self~Endful.pop() : T throws IndexError<USize>, Mem::AllocationError
+    final value = this[this.size - 1]
+    this.realloc(this.size -= 1)
+    return value
+  end
+
+  impl self~Indexable.[](index : USize) : T throws IndexError<USize>
+    if (!this.index?(index)) throw IndexError.new(index)
+    return unsafe! this.pointer[index]
+  end
+
+  impl self~Indexable.[]=(
+    index : USize,
+    value: new : T
+  ) : void throws IndexError<USize>
+    if (!this.index?(index)) throw IndexError.new(index)
+
+    unsafe!
+      @decrc(this.pointer[index])
+      this.pointer[index] = new
+      @incrc(new)
+    end
+  end
+
+  private def realloc(desired_capacity : USize) throws Mem::AllocationError
+    final new_capacity = 2 ** log(2, desired_capacity).floor()
+
+    if (new_capacity != this.capacity) {
+      this.pointer = (if (new_capacity > 0)
+        Mem::realloc(this.pointer, new_capacity)
+      else
+        Mem::free(this.pointer))
+
+      this.capacity = new_capacity
+    }
+  end
+
+  impl self~Indexable.index?(index : SSize)
+    if (index >= 0 && index >= this.size) return false
+    elsif (index < 0 && -index > this.size) return false
+    return true
+  end
+
+  unsafe reimpl finalize()
+    Mem.free(this.pointer)
+  end
+
+  reimpl eachfield(block) => this.each(block)
+}

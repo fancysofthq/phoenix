@@ -13,18 +13,20 @@ namespace Token {
 
 using Base = NXC::Token;
 
-// TODO: Parser calls `_is_punct(Token::Punct::OpenParen)`.
-// NOTE: Newline and HSpace don't preserve the original amount of characters.
+/// NOTE: `Newline` and `Space` won't preserve the original amount of
+/// characters.
 struct Punct : Base {
-  static const char *token_name() { return "<C/Punct>"; }
+  const char *token_name() const override { return "C/Punct"; }
 
   enum Kind {
-    Newline,
-    HSpace, ///< Horizontal space.
-    Comma,
-    Semi,
-    OpenParen,
-    CloseParen,
+    Newline,    ///< `␤`
+    Space,      ///< ` `
+    Comma,      ///< `,`
+    Semi,       ///< `;`
+    OpenParen,  ///< `(`
+    CloseParen, ///< `)`
+    Query,      ///< `.`
+    Varg,       ///< `...`
   };
 
   Kind kind;
@@ -32,84 +34,87 @@ struct Punct : Base {
   static const char *kind_to_expected(Kind kind) {
     switch (kind) {
     case Newline:
-      return "newline";
-    case HSpace:
+      return "\\n";
+    case Space:
       return "space";
     case Comma:
-      return "comma";
+      return ",";
     case Semi:
-      return "semicolon";
+      return ";";
     case OpenParen:
-      return "opening parenthesis";
+      return "(";
     case CloseParen:
-      return "closing parenthesis";
+      return ")";
+    case Query:
+      return ".";
+    case Varg:
+      return "varg";
     }
   }
 
   Punct(Placement plc, Kind kind) : Base(plc), kind(kind) {}
 
-  const void print(std::ostream &stream) const override {
-    stream << kind_to_char(kind);
-  };
-
-  const void inspect(std::ostream &stream) const override {
-    stream << "<C/Punct ";
-
-    if (kind == Newline)
-      stream << "\\n";
-    else
-      stream << kind_to_char(kind);
-
-    stream << ">";
-  };
-
-private:
-  static char kind_to_char(Kind kind) {
+  const void print(std::ostream &o) const override {
     switch (kind) {
     case Newline:
-      return '\n';
-    case HSpace:
-      return ' ';
+      o << '\n';
+    case Space:
+      o << ' ';
     case Comma:
-      return ',';
+      o << ',';
     case Semi:
-      return ';';
+      o << ';';
     case OpenParen:
-      return '(';
+      o << '(';
     case CloseParen:
-      return ')';
+      o << ')';
+    case Query:
+      o << '.';
+    case Varg:
+      o << "...";
     }
-  }
+  };
+
+  // const void inspect(std::ostream &o) const override {
+  //   o << "<C/Punct ";
+
+  //   if (kind == Newline)
+  //     o << "\\n";
+  //   else
+  //     print(o);
+
+  //   o << ">";
+  // };
 };
 
+/// TODO: The list of C operators is well-known.
 struct Op : Base {
-  static const char *token_name() { return "<C/Op>"; }
+  const char *token_name() const override { return "C/Op"; }
 
-  std::string op;
+  std::string value;
+  Op(Placement plc, std::string value) : Base(plc), value(value) {}
 
-  Op(Placement plc, std::string op) : Base(plc), op(op) {}
+  const void print(std::ostream &stream) const override { stream << value; };
 
-  const void print(std::ostream &stream) const override { stream << op; };
-
-  const void inspect(std::ostream &stream) const override {
-    stream << "<C/Op " << op << ">";
-  };
+  // const void inspect(std::ostream &stream) const override {
+  //   stream << "<C/Op " << value << ">";
+  // };
 };
 
 // A C id, which may consist of multiple words, e.g. `unsigned int`.
 struct Id : Base {
-  static const char *token_name() { return "<C/Id>"; }
+  const char *token_name() const override { return "C/Id"; }
 
   // The id string is guaranteed to not contain any excessive spaces.
-  std::string id;
+  std::string value;
 
-  Id(Placement plc, std::string id) : Base(plc), id(id) {}
+  Id(Placement plc, std::string value) : Base(plc), value(value) {}
 
-  const void print(std::ostream &stream) const override { stream << id; };
+  const void print(std::ostream &stream) const override { stream << value; };
 
-  const void inspect(std::ostream &stream) const override {
-    stream << "<C/Id " << id << ">";
-  };
+  // const void inspect(std::ostream &stream) const override {
+  //   stream << "<C/Id " << value << ">";
+  // };
 };
 
 using Any = std::variant<Punct, Op, Id>;

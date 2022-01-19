@@ -1,0 +1,31 @@
+extern #include <stdlib.h>
+
+import Exception from "./exception.nx"
+import { USize } from "./int.nx"
+
+export class MemoryAllocationError : Exception {
+  static self(amount : USize) -> self({
+    Exception("Failed to allocate #{} bytes")
+  })
+}
+
+export threadsafe alloca<T>(amount : USize) -> {
+  final size = @sizeof<T>() * amount
+  final raw = unsafe! $malloc(size)
+  if (raw == 0) throw MemoryAllocationError(size)
+  return unsafe! raw as T*w
+} : T*w throws MemoryAllocationError
+
+export unsafe realloc<T>(
+  pointer : T*,
+  new_amount : USize
+) -> {
+  final size = @sizeof<T>() * new_amount
+  final raw = unsafe! $realloc(pointer as void*, size)
+  if (raw == 0) throw MemoryAllocationError(size)
+  return unsafe! raw as T*w
+} : T*w throws MemoryAllocationError
+
+export unsafe free<T>(pointer : T*) -> {
+  $free(pointer as void*)
+} : void

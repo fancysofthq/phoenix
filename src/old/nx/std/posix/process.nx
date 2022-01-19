@@ -1,0 +1,17 @@
+extern #include <stdio.h>
+
+import Process from "../../spec/std/posix/process.nxh"
+
+impl Process {
+  impl stdin = unsafe! File($stdin)
+  impl stdout = unsafe! File($stdout)
+  impl stderr = unsafe! File($stderr)
+
+  impl args = (
+    {% if nx.target.os.kernel == "linux" %}
+      CString[]sr{}
+    {% else %}
+      {% raise "Process args are not implemented for this kernel" %}
+    {% end %}
+  )
+}

@@ -7,14 +7,14 @@
 
 namespace Fancysoft::NXC::C {
 
-std::unique_ptr<AST> Parser::parse(bool single_expression) {
+std::unique_ptr<CST> Parser::parse(bool single_expression) {
   _initialize();
 
   bool an_expression_parsed = false;
-  auto ast = std::make_unique<AST>();
+  auto ast = std::make_unique<CST>();
 
   while (!_lexer_done() && (!single_expression || !an_expression_parsed)) {
-    if (_is_punct(Token::Punct::HSpace)) {
+    if (_is_punct(Token::Punct::Space)) {
       _advance();
       continue;
     }
@@ -22,7 +22,7 @@ std::unique_ptr<AST> Parser::parse(bool single_expression) {
     else if (_is<Token::Id>()) {
       auto initial_type_ref = _parse_type_ref();
 
-      if (_is_punct(Token::Punct::HSpace)) {
+      if (_is_punct(Token::Punct::Space)) {
         // That's a function declaration.
         //
 
@@ -34,10 +34,10 @@ std::unique_ptr<AST> Parser::parse(bool single_expression) {
         _as_open_paren();
         _advance(); // Consue the opening parenthesis
 
-        std::vector<std::shared_ptr<AST::FuncDecl::ArgDecl>> args;
+        std::vector<std::shared_ptr<CST::FuncDecl::Arg>> args;
 
         while (_is<Token::Id>()) {
-          args.push_back(_parse_arg_decl());
+          args.push_back(_parse_func_decl_arg());
 
           if (_is_comma()) {
             _advance();
@@ -46,16 +46,16 @@ std::unique_ptr<AST> Parser::parse(bool single_expression) {
             _advance();
             break;
           } else {
-            throw _unexpected("comma or closing parenthesis");
+            throw _expected("`,` or `)`");
           }
         }
 
         _as_semi();
 
-        auto node = std::make_shared<AST::FuncDecl>(
+        auto node = std::make_shared<CST::FuncDecl>(
             initial_type_ref, function_id_token, args);
 
-        _debug_parsed(node->node_name());
+        _debug(node.get());
         ast->add_child(node);
 
         if (!single_expression) {
@@ -72,7 +72,7 @@ std::unique_ptr<AST> Parser::parse(bool single_expression) {
     }
   }
 
-  auto &log = Util::logger.debug(_debug_name());
+  auto &log = _logger->sdebug();
   log << "Done parsing due to ";
 
   if (_lexer_done()) {
@@ -88,7 +88,7 @@ std::unique_ptr<AST> Parser::parse(bool single_expression) {
   return ast;
 }
 
-std::shared_ptr<AST::TypeRef> Parser::_parse_type_ref() {
+std::shared_ptr<CST::TypeRef> Parser::_parse_type_ref() {
   auto id = _as<Token::Id>();
   _advance();
 
@@ -98,13 +98,11 @@ std::shared_ptr<AST::TypeRef> Parser::_parse_type_ref() {
     _advance();
   }
 
-  auto node = std::make_shared<AST::TypeRef>(id, pointer_tokens);
-  _debug_parsed(node->node_name());
-
+  auto node = std::make_shared<CST::TypeRef>(id, pointer_tokens);
   return node;
 }
 
-std::shared_ptr<AST::FuncDecl::ArgDecl> Parser::_parse_arg_decl() {
+std::shared_ptr<CST::FuncDecl::Arg> Parser::_parse_func_decl_arg() {
   auto type_ref = _parse_type_ref();
 
   std::optional<Token::Id> id;
@@ -116,9 +114,7 @@ std::shared_ptr<AST::FuncDecl::ArgDecl> Parser::_parse_arg_decl() {
       _advance();
   }
 
-  auto node = std::make_shared<AST::FuncDecl::ArgDecl>(type_ref, id);
-  _debug_parsed(node->node_name());
-
+  auto node = std::make_shared<CST::FuncDecl::Arg>(type_ref, id);
   return node;
 }
 

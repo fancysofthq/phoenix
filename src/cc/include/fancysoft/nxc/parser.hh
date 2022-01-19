@@ -3,16 +3,17 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <stack>
 #include <variant>
 
+#include <fancysoft/util/coro.hh>
+#include <fancysoft/util/variant.hh>
 #include <fmt/core.h>
-
-#include "../util/coro.hh"
-#include "../util/logger.hh"
-#include "../util/variant.hh"
 
 #include "./exception.hh"
 #include "./lexer.hh"
+#include "./logger.hh"
+#include "./node.hh"
 #include "./token.hh"
 
 namespace Fancysoft {
@@ -24,37 +25,40 @@ template <typename LexerT, typename TokenT> struct Parser {
       std::is_base_of<Lexer<TokenT>, LexerT>::value,
       "`LexerT` must derive from `NXC::Lexer<TokenT>`");
 
-  Parser(std::shared_ptr<LexerT> lexer) : _lexer(lexer) {}
+  Parser(LexerT *lexer, std::shared_ptr<Logger> logger) :
+      _lexer(lexer), _logger(logger) {}
 
 private:
   /// The lexing coroutine yielding a token.
   std::unique_ptr<Util::Coro::Generator<TokenT>> _token_coro;
 
-  /// A container for the latest token (not set until first advanced).
-  std::optional<TokenT> _token_container;
+  /// The latest yielded token.
+  std::optional<TokenT> _latest_token;
 
-  void _debug_token(std::ostream &output) const {
-    std::visit(
-        [&output](auto &&token) {
-          output << "Lexer yielded ";
-          token.inspect(output);
-          output << '\n';
-        },
-        _token());
+  void _debug(TokenT token) {
+    auto &log = _logger->sdebug();
+    log << "Lexer yielded ";
+    std::visit([&log](auto &&token) { log << token.token_name(); }, token);
+    log << "\n";
   }
 
 protected:
-  /// The lexer instance.
-  const std::shared_ptr<LexerT> _lexer;
+  /// A logger instance.
+  std::shared_ptr<Logger> _logger;
 
-  virtual const char *_debug_name() const = 0;
+  /// The lexer instance pointer.
+  LexerT *_lexer;
 
-  void _debug_parsed(std::string node_name) {
-    fmt::print(Util::logger.debug(_debug_name()), "Parsed {}\n", node_name);
+  /// Debug log a *node*.
+  void _debug(Node *node) {
+    auto &log = _logger->sdebug();
+    log << "Parsed ";
+    node->trace(log);
+    log << "\n";
   }
 
   /// Must be called before `_advance()`.
-  /// It fills up `_token()` with the next token value.
+  /// It fills up `_token_stack` with the next token value.
   void _initialize() {
     if (_token_coro)
       throw "The token coroutine has already been created";
@@ -63,8 +67,8 @@ protected:
         std::make_unique<Util::Coro::Generator<TokenT>>(_lexer->lex());
 
     _token_coro.get()->begin();
-    _token_container = _token_coro.get()->current();
-    _debug_token(Util::logger.debug(_debug_name()));
+    _latest_token = _token_coro.get()->current();
+    _debug(_latest_token.value());
   }
 
   /// Check if lexer has done yielding tokens.
@@ -78,45 +82,24 @@ protected:
   /// Advance the parser, returning the old token value.
   /// `_initialize()` must be called beforeahead.
   TokenT _advance() {
-    if (_lexer_done()) {
-      if (_lexer->exception()) {
-        throw _lexer->exception().value();
-      } else {
-        throw "Lexer is already done, can not advance";
-      }
-    }
+    if (_lexer_done())
+      throw _unexpected_eof();
 
-    auto old = _token();
+    auto old = _latest_token.value();
+    _latest_token = _token_coro.get()->next();
+    _debug(_latest_token.value());
 
-    _token_container = _token_coro.get()->next();
-    _debug_token(Util::logger.debug(_debug_name()));
+    if (_lexer->exception())
+      throw _lexer->exception().value();
+    else if (_lexer->panic())
+      throw _lexer->panic().value();
 
     return old;
   }
 
-  /// Force get the stored token pointer from the `_token_container`,
-  /// throw otherwise.
-  const TokenT &_token() const {
-    if (this->_token_container.has_value())
-      return this->_token_container.value();
-    else
-      throw "The token container is empty";
-  }
-
-  /// Advance and expect the next token to be `T`, returning its ref.
-  template <class T> const T &_next_as() {
-    _advance();
-
-    if (auto matching = std::get_if<T>(&_token())) {
-      return *matching;
-    } else {
-      throw _unexpected(T::token_name());
-    }
-  }
-
   /// Check if current token is *T*.
   template <class T> bool _is() const {
-    return std::holds_alternative<T>(this->_token());
+    return std::holds_alternative<T>(_latest_token.value());
   }
 
   /// Check if current token is one of *T...*.
@@ -127,8 +110,8 @@ protected:
   /// Check if current token is *T*, and return a copy of it.
   /// Otherwise return `std::nullopt`.
   template <class T> std::optional<T> _if() const {
-    if (this->_token_container.has_value()) {
-      if (auto token = std::get_if<T>(&this->_token())) {
+    if (_latest_token.has_value()) {
+      if (auto token = std::get_if<T>(&_latest_token.value())) {
         return *token;
       } else {
         return std::nullopt;
@@ -157,7 +140,7 @@ protected:
     if (token.has_value()) {
       return token.value();
     } else {
-      throw _unexpected();
+      throw _expected<T>();
     }
   }
 
@@ -170,24 +153,35 @@ protected:
     if (tokens.has_value()) {
       return tokens;
     } else {
-      throw _unexpected();
+      throw _expected<T1>(); // TODO: List all expected tokens
     }
   }
 
-  /// Return an unexpected token panic.
-  Panic _unexpected() const {
+  /// Consume current token as `T` and advance, returning the consumed token.
+  template <typename T> T _consume() {
+    auto token = _as<T>();
+    _advance();
+    return token;
+  }
+
+  /// Return an "Unexpected token" panic with message
+  /// telling which token was expected instead.
+  template <typename T> Panic _expected() const {
     return std::visit(
         [this](auto &&token) {
           return Panic(
-              fmt::format("Unexpected token {}", token.token_name()),
+              fmt::format(
+                  "Unexpected token {}, expected {}",
+                  token.token_name(),
+                  T::token_name()),
               token.placement);
         },
-        this->_token());
+        _latest_token.value());
   }
 
-  /// Return an unexpected token panic with message
+  /// Return an "Unexpected token" panic with message
   /// telling what was expected instead.
-  Panic _unexpected(const std::string what_expected) const {
+  Panic _expected(const std::string what_expected) const {
     return std::visit(
         [this, what_expected](auto &&token) {
           return Panic(
@@ -197,20 +191,31 @@ protected:
                   what_expected),
               token.placement);
         },
-        this->_token());
+        _latest_token.value());
+  }
+
+  /// Return an "Unexpected token" panic with latest token.
+  Panic _unexpected() const {
+    return std::visit(
+        [this](auto &&token) {
+          return Panic(
+              fmt::format("Unexpected token {}", token.token_name()),
+              token.placement);
+        },
+        _latest_token.value());
   }
 
   /// Return an "Unexpected EOF" panic.
   Panic _unexpected_eof() const {
-    if (this->_token_container.has_value()) {
+    if (_latest_token.has_value()) {
       return std::visit(
           [this](auto &&token) {
-            return Panic("Unexpected EOF", token.placement);
+            return Panic("Unexpected EOF in parser", token.placement);
           },
-          this->_token());
+          _latest_token.value());
 
     } else {
-      return Panic("Unexpected EOF");
+      return Panic("Unexpected EOF in parser");
     }
   }
 };

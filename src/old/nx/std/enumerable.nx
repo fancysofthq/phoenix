@@ -1,0 +1,9 @@
+import Indexable from "./indexable.nx"
+
+export default trait Enumerable<Value: V>
+  decl each(block : (V) => discard) : void
+end
+
+forall <K, V> impl Indexable<K, V> & Enumerable<V>
+  decl each_with_index(block : (K, V) => discard) : void
+end

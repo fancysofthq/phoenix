@@ -1,0 +1,5 @@
+export default trait Endful<T>
+  decl mut pop() : T
+  decl mut push(value : T) : void
+  alias <<(*) => push(*)
+end

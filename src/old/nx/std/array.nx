@@ -1,0 +1,50 @@
+import Indexable, { IndexError } from "./indexable.nx"
+
+forall *[T, Z] impl Array<T, Z> : *[
+  Indexable<SSize>,
+  Enumerable<T>,
+  Mappable<T>
+] {
+  impl &Indexable.[](index : SSize) : T throws IndexError<SSize>
+    if (!index?(index)) then throw IndexError.new(index)
+    return unsafe! this[index]
+  end
+
+  impl &Indexable.[]=(index : SSize, value : T) : T throws IndexError<SSize>
+    if (!index?(index)) then throw IndexError.new(index)
+    return unsafe! this[index] = value
+  end
+
+  impl &Enumerable.each(block: yield : (T) =>)
+    return this.each_with_index((i, v) => yield(v))
+  end
+
+  impl &(Enumerable & Indexable).each_with_index(block: yield : (USize, T) =>)
+    let i : USize = Z - 1
+    while (i > 0) do yield(i, unsafe! this[i--])
+  end
+
+  forall <U> impl &Mappable.map(block: yield (T) => U) : U[Z]
+    return this.map_with_index((i, v) => yield(v))
+  end
+
+  forall <U> impl &(Mappable & Indexable).map_with_index(
+    block: yield : (USize, T) => U
+  ) : U[Z]
+    let new = uninitialized U[Z]
+    let i : USize = Z - 1
+    while (i > 0) do unsafe! new[i] = yield(i, this[i--])
+    return new
+  end
+
+  impl mut &Mappable.map!(block: yield (T) => T) : void
+    this.map_with_index!((i, v) => yield(v))
+  end
+
+  impl mut &(Mappable & Indexable).map_with_index!(
+    block: yield : (USize, T) => T
+  ) : void
+    let i : USize = Z - 1
+    while (i >= 0) do unsafe! this[i] = yield(i, this[i--])
+  end
+}

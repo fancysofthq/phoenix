@@ -1,8 +1,10 @@
+#include <algorithm>
+
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 
 #include "fancysoft/nxc/c/block.hh"
-#include "fancysoft/nxc/onyx/file.hh"
+#include "fancysoft/nxc/file.hh"
 #include "fancysoft/nxc/placement.hh"
 
 namespace Fancysoft::NXC {
@@ -28,13 +30,18 @@ void Placement::debug(std::ostream &stream) const {
           "In C block at {}:{}\n",
           element.location.start.row + 1,
           element.location.start.col + 1);
-    } else if (Onyx::File *file = dynamic_cast<Onyx::File *>(unit.get())) {
+    } else if (File *file = dynamic_cast<File *>(unit.get())) {
       fmt::print(
           stream,
-          "At {}:{}:{}\n",
+          "At {0}:{1}:{2}:\n  {1}. | {3}\n{4}^\n",
           file->path.string(),
           element.location.start.row + 1,
-          element.location.start.col + 1);
+          element.location.start.col + 1,
+          file->File::get_line(element.location.start.row),
+          std::string(
+              6 + (std::to_string(element.location.start.row + 1).length()) +
+                  std::max(element.location.start.col - 1, 0u),
+              ' '));
     }
   }
 }

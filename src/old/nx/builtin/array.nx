@@ -1,0 +1,17 @@
+# Negative index offsets from the end.
+export default builtin Array<Type: T, Size: Z : \uint>
+  # Unsafely get the value at *index*.
+  # If index is out of bounds, the behaviour is undefined.
+  builtin unsafe def [](index : SSize) : T
+
+  # Unsafely set the *value* at *index*, returning the copy of the value.
+  # If index is out of bounds, the behaviour is undefined.
+  builtin unsafe def []=(index : SSize, value : T) : T
+
+  # Check if *index* is in bounds.
+  def index?(index : SSize) : Bool
+    if (index >= 0 && index >= Z) return false
+    elsif (index < 0 && -index > Z) return false
+    return true
+  end
+}

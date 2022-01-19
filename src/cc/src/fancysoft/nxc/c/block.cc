@@ -8,9 +8,13 @@ namespace Fancysoft::NXC::C {
 
 Position Block::parse() {
   assert(!_parsed);
-  auto lexer = std::make_shared<Lexer>(shared_from_this());
-  Parser parser(lexer);
-  _ast = std::move(parser.parse(true));
+
+  auto lexer =
+      std::make_shared<Lexer>(shared_from_this(), _logger->dup("lexer"));
+
+  Parser parser(lexer, _logger->dup("parser"));
+  _cst = std::move(parser.parse(true));
+
   _parsed = true;
   return lexer->cursor();
 }

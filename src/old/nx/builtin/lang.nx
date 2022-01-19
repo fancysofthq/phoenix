@@ -1,0 +1,75 @@
+# TODO: Tuple<T>.
+
+# Basically,
+#
+# ```
+# Object<T>
+# |- Object : Object<T>
+# ```
+#
+# If `T` is, for example, a class, then:
+#
+# ```nx
+# T :
+#   T::Object :
+#   Object<T> :
+#   Object<T>::Object :
+#   Object<T>::Class :
+#   T::Class
+#
+# # T::Struct # Panic!
+# ```
+#
+export builtin Object<Object : Object>;
+
+# ```
+# Builtin<T>
+# |- Object : Object<T>
+#    |- Builtin : Builtin<T>
+# |- Builtin : Builtin<T>
+# ```
+export builtin Builtin<Builtin : Builtin>;
+
+# ```
+# Trait<T>
+# |- Trait : Trait<T>
+# ```
+export builtin Trait<Trait : Trait>;
+
+# ```
+# Struct<T>
+# |- Object : Object<T>
+#    |- Struct : Struct<T>
+# |- Struct  : Struct<T>
+# ```
+export builtin Struct<Struct : Struct>;
+
+# ```
+# Class<T>
+# |- Object : Object<T>
+#    |- Class : Class<T>
+# |- Class : Class<T>
+# ```
+export builtin Class<Class : Class>;
+
+# ```
+# Enum<T>
+# |- Object : Object<T>
+#    |- Enum : Enum<T>
+# |- Enum : Enum<T>
+# ```
+export builtin Enum<Enum : Enum>;
+
+# ```
+# Unit<T>
+# |- Object : Object<T>
+#    |- Unit : Unit<T>
+# |- Unit : Unit<T>
+# ```
+export builtin Unit<Unit : Unit>;
+
+# ```
+# Function<T>
+# |- Function : Function<T>
+# ```
+export builtin Function<Function : Function>;
